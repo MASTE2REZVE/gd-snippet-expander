@@ -1,0 +1,228 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/gd_snippet_expander/panel.gd" id="1_panel"]
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_modes"]
+
+[node name="SnippetExpanderPanel" type="VBoxContainer"]
+custom_minimum_size = Vector2(0, 340)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+script = ExtResource("1_panel")
+
+[node name="InputRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PhraseLabel" type="Label" parent="InputRow"]
+layout_mode = 2
+text = "Phrase:"
+
+[node name="PhraseInput" type="LineEdit" parent="InputRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "e.g. move forward, 3d character, pause menu..."
+
+[node name="InsertButton" type="Button" parent="InputRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Insert"
+
+[node name="CopyButton" type="Button" parent="InputRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Copy"
+
+[node name="ModeRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ModeLabel" type="Label" parent="ModeRow"]
+layout_mode = 2
+text = "Mode:"
+
+[node name="ModeCodeOnly" type="Button" parent="ModeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_modes")
+text = "Code only"
+
+[node name="ModeCodeDetails" type="Button" parent="ModeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_modes")
+text = "Code + details"
+
+[node name="ModeFullDetails" type="Button" parent="ModeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_modes")
+button_pressed = true
+text = "Full details"
+
+[node name="MainTabs" type="TabContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Preview" type="VBoxContainer" parent="MainTabs"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ResultsList" type="ItemList" parent="MainTabs/Preview"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+
+[node name="WarningLabel" type="Label" parent="MainTabs/Preview"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Warning"
+
+[node name="PreviewTabs" type="TabContainer" parent="MainTabs/Preview"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Code" type="CodeEdit" parent="MainTabs/Preview/PreviewTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+editable = false
+
+[node name="Details" type="TextEdit" parent="MainTabs/Preview/PreviewTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+editable = false
+
+[node name="Params" type="TextEdit" parent="MainTabs/Preview/PreviewTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+editable = false
+
+[node name="ChipsRow" type="HBoxContainer" parent="MainTabs/Preview"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RelatedLabel" type="Label" parent="MainTabs/Preview/ChipsRow"]
+layout_mode = 2
+text = "Related:"
+
+[node name="RelatedChips" type="HBoxContainer" parent="MainTabs/Preview/ChipsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="StatusLabel" type="Label" parent="MainTabs/Preview"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ready."
+
+[node name="Browse" type="VBoxContainer" parent="MainTabs"]
+layout_mode = 2
+
+[node name="BrowseHint" type="Label" parent="MainTabs/Browse"]
+layout_mode = 2
+text = "Click any item to load it in the Preview tab."
+
+[node name="BrowseTree" type="Tree" parent="MainTabs/Browse"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+hide_root = true
+
+[node name="Learn" type="VBoxContainer" parent="MainTabs"]
+layout_mode = 2
+
+[node name="LearnHeader" type="HBoxContainer" parent="MainTabs/Learn"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LearnNodeLabel" type="Label" parent="MainTabs/Learn/LearnHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Select a node in the Scene tree, then press Refresh."
+
+[node name="LearnRefreshButton" type="Button" parent="MainTabs/Learn/LearnHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Refresh"
+
+[node name="LearnText" type="TextEdit" parent="MainTabs/Learn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+editable = false
+
+[node name="Tools" type="VBoxContainer" parent="MainTabs"]
+layout_mode = 2
+
+[node name="ToolsScroll" type="ScrollContainer" parent="MainTabs/Tools"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ToolsInner" type="VBoxContainer" parent="MainTabs/Tools/ToolsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="TemplatesLabel" type="Label" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+layout_mode = 2
+text = "Starter Templates"
+
+[node name="TemplatesList" type="VBoxContainer" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Sep1" type="HSeparator" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+layout_mode = 2
+
+[node name="CheckerLabel" type="Label" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+layout_mode = 2
+text = "Scene Checker"
+
+[node name="CheckerButton" type="Button" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Scan Scene for Issues"
+
+[node name="CheckerOutput" type="TextEdit" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+editable = false
+
+[node name="Sep2" type="HSeparator" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+layout_mode = 2
+
+[node name="DebugLabel" type="Label" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+layout_mode = 2
+text = "Debug Overlay"
+
+[node name="OverlayRow" type="HBoxContainer" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="OverlayInstallButton" type="Button" parent="MainTabs/Tools/ToolsScroll/ToolsInner/OverlayRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Install"
+
+[node name="OverlayRemoveButton" type="Button" parent="MainTabs/Tools/ToolsScroll/ToolsInner/OverlayRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Remove"

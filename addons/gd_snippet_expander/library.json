@@ -1,0 +1,883 @@
+{
+	"version": 2,
+	"snippets": {
+		"character_movement_3d": {
+			"phrases": ["move forward", "walk forward", "character forward", "3d movement", "characterbody3d movement"],
+			"code": "extends CharacterBody3D\n\n@export var speed: float = 5.0\n\nfunc _physics_process(_delta: float) -> void:\n\tvar input_dir := Input.get_vector(\"left\", \"right\", \"forward\", \"back\")\n\tvelocity.x = input_dir.x * speed\n\tvelocity.z = input_dir.y * speed\n\tmove_and_slide()\n",
+			"params": ["speed"],
+			"category": "movement",
+			"dimension": "3d",
+			"difficulty": "beginner",
+			"required_actions": ["left", "right", "forward", "back"],
+			"param_info": {
+				"speed": {
+					"default": 5.0,
+					"range": [1.0, 20.0],
+					"what": "How fast the character moves, in meters per second.",
+					"typical": "2.0 sneaking / 5.0 normal walk / 8.0 action game / 15.0+ sprint",
+					"increase": "Above 12 feels arcadey, hard to steer precisely.",
+					"decrease": "Below 3 feels sluggish for most 3D games."
+				}
+			},
+			"details": {
+				"what": "A CharacterBody3D that reads WASD input and moves on the XZ plane.",
+				"where": "Attach to a CharacterBody3D. Add a CollisionShape3D child or the character falls through the floor.",
+				"before": "Create input actions: left, right, forward, back in Project Settings > Input Map.",
+				"after": "Add a Camera3D as a child. For mouse look, also insert 'mouse look 3d'.",
+				"why_optimized": "Uses @export for editor tuning, Input.get_vector for analog input, no per-frame allocations.",
+				"mistakes": "Forgetting move_and_slide() means no movement. Forgetting CollisionShape3D means falling through the world.",
+				"related": ["jump 3d", "mouse look 3d", "first person movement"]
+			}
+		},
+		"character_movement_2d": {
+			"phrases": ["2d movement", "move 2d", "characterbody2d movement", "walk 2d"],
+			"code": "extends CharacterBody2D\n\n@export var speed: float = 200.0\n\nfunc _physics_process(_delta: float) -> void:\n\tvar input_dir := Input.get_vector(\"left\", \"right\", \"up\", \"down\")\n\tvelocity = input_dir * speed\n\tmove_and_slide()\n",
+			"params": ["speed"]
+		},
+		"platformer_movement_2d": {
+			"phrases": ["platformer movement", "jump 2d", "2d jump", "side scroll movement", "mario movement"],
+			"code": "extends CharacterBody2D\n\n@export var speed: float = 200.0\n@export var jump_velocity: float = -400.0\n@export var gravity: float = 980.0\n\nfunc _physics_process(delta: float) -> void:\n\tif not is_on_floor():\n\t\tvelocity.y += gravity * delta\n\tif Input.is_action_just_pressed(\"jump\") and is_on_floor():\n\t\tvelocity.y = jump_velocity\n\tvar dir := Input.get_axis(\"left\", \"right\")\n\tvelocity.x = dir * speed\n\tmove_and_slide()\n",
+			"params": ["speed", "jump_velocity", "gravity"],
+			"category": "movement",
+			"dimension": "2d",
+			"difficulty": "beginner",
+			"required_actions": ["left", "right", "jump"],
+			"param_info": {
+				"speed": {
+					"default": 200.0,
+					"range": [50.0, 500.0],
+					"what": "Horizontal run speed, in pixels per second.",
+					"typical": "100 slow walk / 200 normal / 350 fast / 500+ speedrun feel",
+					"increase": "Feels snappier but harder to land precise jumps.",
+					"decrease": "More deliberate, puzzle-platformer feel."
+				},
+				"jump_velocity": {
+					"default": -400.0,
+					"range": [-800.0, -100.0],
+					"what": "Upward push applied at jump start. Negative is up in 2D.",
+					"typical": "-300 floaty / -400 normal / -550 snappy / -700+ very twitchy",
+					"increase": "More negative = higher jump. Goes higher, stays in air longer.",
+					"decrease": "Less negative = shorter jump. Below -200 barely hops."
+				},
+				"gravity": {
+					"default": 980.0,
+					"range": [200.0, 3000.0],
+					"what": "Downward acceleration, in pixels per second squared.",
+					"typical": "600 floaty / 980 Earth-like / 1800 snappy / 2500+ very punchy",
+					"increase": "Faster fall, more weight. Pairs well with high jump_velocity.",
+					"decrease": "Floaty, moon-like. Below 400 feels underwater."
+				}
+			},
+			"details": {
+				"what": "A 2D platformer character with gravity, jumping, and left/right movement.",
+				"where": "Attach to a CharacterBody2D. Add a CollisionShape2D child.",
+				"before": "Create input actions: left, right, jump in Project Settings > Input Map.",
+				"after": "Build a floor with StaticBody2D + CollisionShape2D so is_on_floor() returns true.",
+				"why_optimized": "Input.is_action_just_pressed prevents double-jump. get_axis returns smooth analog input.",
+				"mistakes": "Using is_action_pressed for jump causes repeated jumps. Forgetting move_and_slide() means no movement.",
+				"related": ["coyote time 2d", "jump buffer 2d", "variable jump height"]
+			}
+		},
+		"topdown_movement_2d": {
+			"phrases": ["topdown movement", "top down movement", "top-down 2d", "top down 2d"],
+			"code": "extends CharacterBody2D\n\n@export var speed: float = 200.0\n\nfunc _physics_process(_delta: float) -> void:\n\tvar input_dir := Input.get_vector(\"left\", \"right\", \"up\", \"down\")\n\tvelocity = input_dir * speed\n\tmove_and_slide()\n\tif input_dir.length() > 0.0:\n\t\trotation = input_dir.angle()\n",
+			"params": ["speed"]
+		},
+		"dash_2d": {
+			"phrases": ["dash", "dash 2d", "dash ability"],
+			"code": "@export var dash_speed: float = 600.0\n@export var dash_duration: float = 0.2\n@export var dash_cooldown: float = 0.6\n\nvar _dashing: bool = false\nvar _can_dash: bool = true\nvar _dash_dir: Vector2 = Vector2.RIGHT\n\nfunc _unhandled_input(event: InputEvent) -> void:\n\tif event.is_action_pressed(\"dash\") and _can_dash:\n\t\t_dash_dir = Vector2.RIGHT if velocity.x >= 0.0 else Vector2.LEFT\n\t\t_start_dash()\n\nfunc _start_dash() -> void:\n\t_dashing = true\n\t_can_dash = false\n\tawait get_tree().create_timer(dash_duration).timeout\n\t_dashing = false\n\tawait get_tree().create_timer(dash_cooldown).timeout\n\t_can_dash = true\n",
+			"params": ["dash_speed", "dash_duration", "dash_cooldown"]
+		},
+		"sprint": {
+			"phrases": ["sprint", "run", "sprint toggle"],
+			"code": "@export var walk_speed: float = 200.0\n@export var sprint_speed: float = 350.0\n\nvar _current_speed: float = walk_speed\n\nfunc _process(_delta: float) -> void:\n\t_current_speed = sprint_speed if Input.is_action_pressed(\"sprint\") else walk_speed\n",
+			"params": ["walk_speed", "sprint_speed"]
+		},
+		"crouch_2d": {
+			"phrases": ["crouch", "crouch 2d", "duck"],
+			"code": "@export var crouch_speed: float = 100.0\n\nvar _crouching: bool = false\n\nfunc _unhandled_input(event: InputEvent) -> void:\n\tif event.is_action_pressed(\"crouch\"):\n\t\t_crouching = true\n\telif event.is_action_released(\"crouch\"):\n\t\t_crouching = false\n",
+			"params": ["crouch_speed"]
+		},
+		"double_jump": {
+			"phrases": ["double jump", "doublejump", "air jump"],
+			"code": "@export var jump_velocity: float = -400.0\n@export var max_jumps: int = 2\n\nvar _jumps_left: int = max_jumps\n\nfunc _physics_process(_delta: float) -> void:\n\tif is_on_floor():\n\t\t_jumps_left = max_jumps\n\tif Input.is_action_just_pressed(\"jump\") and _jumps_left > 0:\n\t\tvelocity.y = jump_velocity\n\t\t_jumps_left -= 1\n",
+			"params": ["jump_velocity", "max_jumps"]
+		},
+		"wall_jump_2d": {
+			"phrases": ["wall jump", "walljump", "wall slide jump"],
+			"code": "@export var wall_jump_velocity: Vector2 = Vector2(300.0, -400.0)\n\nfunc _physics_process(_delta: float) -> void:\n\tif is_on_wall_only() and Input.is_action_just_pressed(\"jump\"):\n\t\tvar wall_normal := get_wall_normal()\n\t\tvelocity.x = wall_normal.x * wall_jump_velocity.x\n\t\tvelocity.y = wall_jump_velocity.y\n",
+			"params": ["wall_jump_velocity"]
+		},
+		"mouse_look_3d": {
+			"phrases": ["mouse look 3d", "mouse look", "fps look", "look with mouse"],
+			"code": "@export var mouse_sensitivity: float = 0.003\n\nfunc _unhandled_input(event: InputEvent) -> void:\n\tif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:\n\t\trotate_y(-event.relative.x * mouse_sensitivity)\n\t\tvar cam := $Camera3D as Camera3D\n\t\tcam.rotation.x = clamp(cam.rotation.x - event.relative.y * mouse_sensitivity, -1.5, 1.5)\n",
+			"params": ["mouse_sensitivity"]
+		},
+		"first_person_movement": {
+			"phrases": ["first person movement", "fps movement", "first person controller"],
+			"code": "extends CharacterBody3D\n\n@export var speed: float = 5.0\n@export var jump_velocity: float = 4.5\n@export var mouse_sensitivity: float = 0.003\n\n@onready var _camera: Camera3D = $Camera3D\n\nfunc _unhandled_input(event: InputEvent) -> void:\n\tif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:\n\t\trotate_y(-event.relative.x * mouse_sensitivity)\n\t\t_camera.rotation.x = clamp(_camera.rotation.x - event.relative.y * mouse_sensitivity, -1.5, 1.5)\n\nfunc _physics_process(delta: float) -> void:\n\tif not is_on_floor():\n\t\tvelocity += get_gravity() * delta\n\tif Input.is_action_just_pressed(\"jump\") and is_on_floor():\n\t\tvelocity.y = jump_velocity\n\tvar input_dir := Input.get_vector(\"left\", \"right\", \"forward\", \"back\")\n\tvar dir := (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()\n\tvelocity.x = dir.x * speed\n\tvelocity.z = dir.z * speed\n\tmove_and_slide()\n",
+			"params": ["speed", "jump_velocity", "mouse_sensitivity"]
+		},
+		"jump_3d": {
+			"phrases": ["jump 3d", "3d jump"],
+			"code": "@export var jump_velocity: float = 4.5\n\nfunc _physics_process(delta: float) -> void:\n\tif not is_on_floor():\n\t\tvelocity += get_gravity() * delta\n\tif Input.is_action_just_pressed(\"jump\") and is_on_floor():\n\t\tvelocity.y = jump_velocity\n",
+			"params": ["jump_velocity"],
+			"category": "movement",
+			"dimension": "3d",
+			"difficulty": "beginner",
+			"required_actions": ["jump"],
+			"param_info": {
+				"jump_velocity": {
+					"default": 4.5,
+					"range": [1.0, 15.0],
+					"what": "Upward impulse applied when jump is pressed. Positive is up in 3D.",
+					"typical": "2.0 small hop / 4.5 normal / 7.0 floaty / 10.0+ superhero",
+					"increase": "Higher jump, longer air time. Above 12 you'll clear most level geometry.",
+					"decrease": "Lower jump. Below 2.0 barely lifts off the ground."
+				}
+			},
+			"details": {
+				"what": "Adds gravity and a jump impulse to a CharacterBody3D.",
+				"where": "Meant to be inside a CharacterBody3D's script. Assumes gravity is Godot's default.",
+				"before": "Create the input action 'jump' in Project Settings > Input Map (usually bound to Space).",
+				"after": "Tune jump_velocity by feel. Pair with a sprint snippet if you want run+jump.",
+				"why_optimized": "get_gravity() uses the project's gravity setting instead of a hardcoded value.",
+				"mistakes": "Using velocity.y = 4.5 instead of += means you overwrite gravity every frame.",
+				"related": ["character_movement_3d", "first person movement", "double jump"]
+			}
+		},
+		"coyote_time_2d": {
+			"phrases": ["coyote time", "coyote time 2d"],
+			"code": "@export var coyote_time: float = 0.1\n\nvar _coyote_timer: float = 0.0\n\nfunc _physics_process(delta: float) -> void:\n\tif is_on_floor():\n\t\t_coyote_timer = coyote_time\n\telse:\n\t\t_coyote_timer = max(_coyote_timer - delta, 0.0)\n\tif Input.is_action_just_pressed(\"jump\") and _coyote_timer > 0.0:\n\t\tvelocity.y = -400.0\n\t\t_coyote_timer = 0.0\n",
+			"params": ["coyote_time"]
+		},
+		"jump_buffer_2d": {
+			"phrases": ["jump buffer", "input buffer jump"],
+			"code": "@export var jump_buffer_time: float = 0.15\n\nvar _jump_buffer: float = 0.0\n\nfunc _unhandled_input(event: InputEvent) -> void:\n\tif event.is_action_pressed(\"jump\"):\n\t\t_jump_buffer = jump_buffer_time\n\nfunc _physics_process(delta: float) -> void:\n\t_jump_buffer = max(_jump_buffer - delta, 0.0)\n\tif _jump_buffer > 0.0 and is_on_floor():\n\t\tvelocity.y = -400.0\n\t\t_jump_buffer = 0.0\n",
+			"params": ["jump_buffer_time"]
+		},
+		"variable_jump_height": {
+			"phrases": ["variable jump height", "hold jump higher", "variable jump"],
+			"code": "@export var min_jump_velocity: float = -300.0\n@export var max_jump_velocity: float = -500.0\n@export var max_charge_time: float = 0.3\n\nvar _charge: float = 0.0\n\nfunc _physics_process(delta: float) -> void:\n\tif Input.is_action_pressed(\"jump\") and is_on_floor():\n\t\t_charge = min(_charge + delta, max_charge_time)\n\tif Input.is_action_just_released(\"jump\") and is_on_floor():\n\t\tvar t := _charge / max_charge_time\n\t\tvelocity.y = lerp(min_jump_velocity, max_jump_velocity, t)\n\t\t_charge = 0.0\n",
+			"params": ["min_jump_velocity", "max_jump_velocity", "max_charge_time"]
+		},
+		"camera_follow_2d": {
+			"phrases": ["camera follow 2d", "follow player 2d", "camera follow player"],
+			"code": "extends Camera2D\n\n@export var target_path: NodePath\n@export var smooth_speed: float = 5.0\n\n@onready var _target: Node2D = get_node(target_path) as Node2D\n\nfunc _process(delta: float) -> void:\n\tglobal_position = global_position.lerp(_target.global_position, smooth_speed * delta)\n",
+			"params": ["target_path", "smooth_speed"]
+		},
+		"camera_follow_3d": {
+			"phrases": ["camera follow 3d", "follow player 3d", "third person camera"],
+			"code": "extends Camera3D\n\n@export var target_path: NodePath\n@export var offset: Vector3 = Vector3(0, 3, 6)\n@export var smooth_speed: float = 5.0\n\n@onready var _target: Node3D = get_node(target_path) as Node3D\n\nfunc _process(delta: float) -> void:\n\tvar desired := _target.global_position + offset\n\tglobal_position = global_position.lerp(desired, smooth_speed * delta)\n\tlook_at(_target.global_position, Vector3.UP)\n",
+			"params": ["target_path", "offset", "smooth_speed"]
+		},
+		"camera_shake": {
+			"phrases": ["camera shake", "screen shake", "shake camera"],
+			"code": "@export var shake_decay: float = 8.0\n\nvar _shake_amount: float = 0.0\nvar _origin: Vector2 = Vector2.ZERO\n\nfunc _ready() -> void:\n\t_origin = position\n\nfunc shake(amount: float) -> void:\n\t_shake_amount = max(_shake_amount, amount)\n\nfunc _process(delta: float) -> void:\n\tif _shake_amount > 0.0:\n\t\tposition = _origin + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake_amount\n\t\t_shake_amount = max(_shake_amount - shake_decay * delta, 0.0)\n\telse:\n\t\tposition = _origin\n",
+			"params": ["shake_decay"]
+		},
+		"camera_zoom": {
+			"phrases": ["camera zoom", "zoom in out", "mouse wheel zoom"],
+			"code": "extends Camera2D\n\n@export var zoom_step: float = 0.1\n@export var min_zoom: float = 0.5\n@export var max_zoom: float = 3.0\n\nfunc _unhandled_input(event: InputEvent) -> void:\n\tif event is InputEventMouseButton and event.pressed:\n\t\tif event.button_index == MOUSE_BUTTON_WHEEL_UP:\n\t\t\tzoom = (zoom + Vector2.ONE * zoom_step).clamp(Vector2.ONE * min_zoom, Vector2.ONE * max_zoom)\n\t\telif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:\n\t\t\tzoom = (zoom - Vector2.ONE * zoom_step).clamp(Vector2.ONE * min_zoom, Vector2.ONE * max_zoom)\n",
+			"params": ["zoom_step", "min_zoom", "max_zoom"]
+		},
+		"camera_smooth_follow_2d": {
+			"phrases": ["smooth camera 2d", "smooth follow camera"],
+			"code": "extends Camera2D\n\n@export var target_path: NodePath\n@export var speed: float = 4.0\n\n@onready var _target: Node2D = get_node(target_path) as Node2D\n\nfunc _process(delta: float) -> void:\n\tvar weight := 1.0 - exp(-speed * delta)\n\tglobal_position = global_position.lerp(_target.global_position, weight)\n",
+			"params": ["target_path", "speed"]
+		},
+		"camera_limits_2d": {
+			"phrases": ["camera limits", "camera limits 2d", "clamp camera"],
+			"code": "extends Camera2D\n\n@export var top_left: Vector2 = Vector2(0, 0)\n@export var bottom_right: Vector2 = Vector2(2000, 2000)\n\nfunc _ready() -> void:\n\tlimit_left = int(top_left.x)\n\tlimit_top = int(top_left.y)\n\tlimit_right = int(bottom_right.x)\n\tlimit_bottom = int(bottom_right.y)\n",
+			"params": ["top_left", "bottom_right"]
+		},
+		"orbit_camera_3d": {
+			"phrases": ["orbit camera", "orbit camera 3d", "rotate around target"],
+			"code": "extends Node3D\n\n@export var target_path: NodePath\n@export var distance: float = 6.0\n@export var sensitivity: float = 0.005\n\nvar _yaw: float = 0.0\nvar _pitch: float = 0.0\n@onready var _target: Node3D = get_node(target_path) as Node3D\n\nfunc _unhandled_input(event: InputEvent) -> void:\n\tif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:\n\t\t_yaw -= event.relative.x * sensitivity\n\t\t_pitch = clamp(_pitch - event.relative.y * sensitivity, -1.2, 1.2)\n\nfunc _process(_delta: float) -> void:\n\tglobal_position = _target.global_position + Vector3(0, 0, distance).rotated(Vector3.UP, _yaw).rotated(Vector3.RIGHT, _pitch)\n\tlook_at(_target.global_position, Vector3.UP)\n",
+			"params": ["target_path", "distance", "sensitivity"]
+		},
+		"first_person_camera_3d": {
+			"phrases": ["first person camera", "fps camera"],
+			"code": "@onready var _camera: Camera3D = $Camera3D\n\nfunc _ready() -> void:\n\tInput.mouse_mode = Input.MOUSE_MODE_CAPTURED\n\nfunc _unhandled_input(event: InputEvent) -> void:\n\tif event is InputEventMouseMotion:\n\t\trotate_y(-event.relative.x * 0.003)\n\t\t_camera.rotation.x = clamp(_camera.rotation.x - event.relative.y * 0.003, -1.5, 1.5)\n\tif event.is_action_pressed(\"ui_cancel\"):\n\t\tInput.mouse_mode = Input.MOUSE_MODE_VISIBLE\n"
+		},
+		"camera_look_at_mouse": {
+			"phrases": ["camera look at mouse", "look at mouse", "aim at mouse"],
+			"code": "func _process(_delta: float) -> void:\n\tvar mouse_pos := get_global_mouse_position()\n\tlook_at(mouse_pos)\n"
+		},
+		"camera_deadzone": {
+			"phrases": ["camera deadzone", "dead zone camera"],
+			"code": "extends Camera2D\n\n@export var target_path: NodePath\n@export var deadzone: Vector2 = Vector2(48, 48)\n\n@onready var _target: Node2D = get_node(target_path) as Node2D\n\nfunc _process(_delta: float) -> void:\n\tvar diff := _target.global_position - global_position\n\tif abs(diff.x) > deadzone.x:\n\t\tglobal_position.x = _target.global_position.x - sign(diff.x) * deadzone.x\n\tif abs(diff.y) > deadzone.y:\n\t\tglobal_position.y = _target.global_position.y - sign(diff.y) * deadzone.y\n",
+			"params": ["target_path", "deadzone"]
+		},
+		"health_system": {
+			"phrases": ["health", "health system", "hp system", "hit points"],
+			"code": "signal health_changed(new_health: int)\nsignal died\n\n@export var max_health: int = 100\nvar health: int = max_health\n\nfunc take_damage(amount: int) -> void:\n\thealth = max(health - amount, 0)\n\thealth_changed.emit(health)\n\tif health == 0:\n\t\tdied.emit()\n\nfunc heal(amount: int) -> void:\n\thealth = min(health + amount, max_health)\n\thealth_changed.emit(health)\n",
+			"params": ["max_health"]
+		},
+		"take_damage": {
+			"phrases": ["take damage", "damage", "receive damage"],
+			"code": "func take_damage(amount: int) -> void:\n\thealth -= amount\n\tif health <= 0:\n\t\tdie()\n"
+		},
+		"heal": {
+			"phrases": ["heal", "restore health", "recover health"],
+			"code": "func heal(amount: int) -> void:\n\thealth = min(health + amount, max_health)\n"
+		},
+		"die": {
+			"phrases": ["die", "death", "kill player", "on death"],
+			"code": "signal died\n\nfunc die() -> void:\n\tdied.emit()\n\tqueue_free()\n"
+		},
+		"health_bar": {
+			"phrases": ["health bar", "healthbar", "hp bar"],
+			"code": "@onready var _bar: ProgressBar = $ProgressBar\n\nfunc _ready() -> void:\n\thealth_changed.connect(_on_health_changed)\n\t_on_health_changed(health)\n\nfunc _on_health_changed(new_health: int) -> void:\n\t_bar.value = float(new_health) / float(max_health) * 100.0\n"
+		},
+		"invincibility_frames": {
+			"phrases": ["invincibility", "i-frames", "invincibility frames"],
+			"code": "@export var invincibility_time: float = 1.0\n\nvar _invincible: bool = false\n\nfunc take_damage_safe(amount: int) -> void:\n\tif _invincible:\n\t\treturn\n\t_invincible = true\n\thealth -= amount\n\tawait get_tree().create_timer(invincibility_time).timeout\n\t_invincible = false\n",
+			"params": ["invincibility_time"]
+		},
+		"damage_over_time": {
+			"phrases": ["damage over time", "dot damage", "burn damage", "poison"],
+			"code": "@export var dot_damage: int = 2\n@export var dot_interval: float = 0.5\n@export var dot_duration: float = 5.0\n\nfunc apply_damage_over_time() -> void:\n\tvar elapsed := 0.0\n\twhile elapsed < dot_duration:\n\t\tawait get_tree().create_timer(dot_interval).timeout\n\t\thealth -= dot_damage\n\t\telapsed += dot_interval\n",
+			"params": ["dot_damage", "dot_interval", "dot_duration"]
+		},
+		"respawn": {
+			"phrases": ["respawn", "respawn player", "respawn at point"],
+			"code": "@export var respawn_delay: float = 2.0\n@export var spawn_point: NodePath\n\nfunc _on_died() -> void:\n\tawait get_tree().create_timer(respawn_delay).timeout\n\tvar point := get_node(spawn_point) as Node2D\n\tglobal_position = point.global_position\n\thealth = max_health\n",
+			"params": ["respawn_delay", "spawn_point"]
+		},
+		"health_signal": {
+			"phrases": ["health signal", "health changed signal"],
+			"code": "signal health_changed(current: int, maximum: int)\n\nfunc _ready() -> void:\n\thealth_changed.emit(health, max_health)\n"
+		},
+		"kill_zone": {
+			"phrases": ["kill zone", "killzone", "instant death area"],
+			"code": "extends Area2D\n\nfunc _ready() -> void:\n\tbody_entered.connect(_on_body_entered)\n\nfunc _on_body_entered(body: Node2D) -> void:\n\tif body.has_method(\"die\"):\n\t\tbody.die()\n"
+		},
+		"melee_attack": {
+			"phrases": ["melee attack", "melee", "sword attack", "punch"],
+			"code": "@export var damage: int = 10\n@export var cooldown: float = 0.4\n\n@onready var _hitbox: Area2D = $Hitbox\n\nvar _can_attack: bool = true\n\nfunc attack() -> void:\n\tif not _can_attack:\n\t\treturn\n\t_can_attack = false\n\tfor body in _hitbox.get_overlapping_bodies():\n\t\tif body.has_method(\"take_damage\"):\n\t\t\tbody.take_damage(damage)\n\tawait get_tree().create_timer(cooldown).timeout\n\t_can_attack = true\n",
+			"params": ["damage", "cooldown"]
+		},
+		"ranged_attack": {
+			"phrases": ["ranged attack", "shoot", "fire bullet"],
+			"code": "@export var projectile_scene: PackedScene\n@export var fire_rate: float = 0.2\n\nvar _cooldown: float = 0.0\n\nfunc _process(delta: float) -> void:\n\t_cooldown = max(_cooldown - delta, 0.0)\n\nfunc shoot() -> void:\n\tif _cooldown > 0.0 or projectile_scene == null:\n\t\treturn\n\tvar bullet := projectile_scene.instantiate() as Node2D\n\tget_tree().current_scene.add_child(bullet)\n\tbullet.global_position = global_position\n\tbullet.rotation = rotation\n\t_cooldown = fire_rate\n",
+			"params": ["projectile_scene", "fire_rate"]
+		},
+		"projectile": {
+			"phrases": ["projectile", "bullet", "moving projectile"],
+			"code": "extends Area2D\n\n@export var speed: float = 600.0\n@export var damage: int = 10\n@export var lifetime: float = 2.0\n\nfunc _ready() -> void:\n\tbody_entered.connect(_on_body_entered)\n\tget_tree().create_timer(lifetime).timeout.connect(queue_free)\n\nfunc _physics_process(delta: float) -> void:\n\tposition += Vector2.RIGHT.rotated(rotation) * speed * delta\n\nfunc _on_body_entered(body: Node2D) -> void:\n\tif body.has_method(\"take_damage\"):\n\t\tbody.take_damage(damage)\n\tqueue_free()\n",
+			"params": ["speed", "damage", "lifetime"]
+		},
+		"hitbox": {
+			"phrases": ["hitbox", "damage area", "attack area"],
+			"code": "extends Area2D\n\n@export var damage: int = 10\n\nfunc _ready() -> void:\n\tarea_entered.connect(_on_area_entered)\n\nfunc _on_area_entered(area: Area2D) -> void:\n\tif area.has_method(\"take_damage\"):\n\t\tarea.take_damage(damage)\n",
+			"params": ["damage"]
+		},
+		"hurtbox": {
+			"phrases": ["hurtbox", "hurt box", "receive damage area"],
+			"code": "extends Area2D\n\n@export var owner_health: NodePath\n\n@onready var _health: Node = get_node(owner_health)\n\nfunc _ready() -> void:\n\tarea_entered.connect(_on_area_entered)\n\nfunc _on_area_entered(area: Area2D) -> void:\n\tif area.has_method(\"get_damage\"):\n\t\t_health.take_damage(area.get_damage())\n",
+			"params": ["owner_health"]
+		},
+		"knockback": {
+			"phrases": ["knockback", "knock back", "push back"],
+			"code": "@export var knockback_force: float = 300.0\n\nfunc apply_knockback(from_position: Vector2) -> void:\n\tvar dir := (global_position - from_position).normalized()\n\tvelocity = dir * knockback_force\n\tmove_and_slide()\n",
+			"params": ["knockback_force"]
+		},
+		"attack_cooldown": {
+			"phrases": ["attack cooldown", "cooldown timer", "attack delay"],
+			"code": "@export var cooldown: float = 0.5\n\nvar _ready_to_attack: bool = true\n\nfunc try_attack() -> void:\n\tif not _ready_to_attack:\n\t\treturn\n\t_ready_to_attack = false\n\t_do_attack()\n\tawait get_tree().create_timer(cooldown).timeout\n\t_ready_to_attack = true\n\nfunc _do_attack() -> void:\n\tpass\n",
+			"params": ["cooldown"]
+		},
+		"weapon_swap": {
+			"phrases": ["weapon swap", "switch weapon", "change weapon"],
+			"code": "@export var weapons: Array[PackedScene] = []\n\nvar _current_index: int = 0\nvar _current: Node = null\n\nfunc swap_weapon(index: int) -> void:\n\tif index < 0 or index >= weapons.size():\n\t\treturn\n\tif _current:\n\t\t_current.queue_free()\n\t_current = weapons[index].instantiate()\n\tadd_child(_current)\n\t_current_index = index\n",
+			"params": ["weapons"]
+		},
+		"combo_attack": {
+			"phrases": ["combo attack", "combo", "attack combo"],
+			"code": "@export var combo_window: float = 0.6\n@export var max_combo: int = 3\n\nvar _combo_step: int = 0\nvar _combo_timer: float = 0.0\n\nfunc _process(delta: float) -> void:\n\t_combo_timer = max(_combo_timer - delta, 0.0)\n\tif _combo_timer == 0.0:\n\t\t_combo_step = 0\n\nfunc attack() -> void:\n\t_combo_step = (_combo_step + 1) % max_combo\n\t_combo_timer = combo_window\n\t_play_attack(_combo_step)\n\nfunc _play_attack(step: int) -> void:\n\tpass\n",
+			"params": ["combo_window", "max_combo"]
+		},
+		"damage_number_popup": {
+			"phrases": ["damage number", "floating damage", "damage popup"],
+			"code": "@export var popup_scene: PackedScene\n\nfunc spawn_damage_number(amount: int, world_position: Vector2) -> void:\n\tvar popup := popup_scene.instantiate() as Node2D\n\tget_tree().current_scene.add_child(popup)\n\tpopup.global_position = world_position\n\tpopup.set_text(str(amount))\n",
+			"params": ["popup_scene"]
+		},
+		"enemy_patrol": {
+			"phrases": ["enemy patrol", "patrol", "patrol between points"],
+			"code": "extends CharacterBody2D\n\n@export var speed: float = 80.0\n@export var points: Array[Vector2] = []\n\nvar _index: int = 0\n\nfunc _physics_process(_delta: float) -> void:\n\tif points.is_empty():\n\t\treturn\n\tvar target := points[_index]\n\tvar dir := (target - global_position).normalized()\n\tvelocity = dir * speed\n\tmove_and_slide()\n\tif global_position.distance_to(target) < 4.0:\n\t\t_index = (_index + 1) % points.size()\n",
+			"params": ["speed", "points"]
+		},
+		"chase_player": {
+			"phrases": ["chase player", "follow player enemy", "enemy chase"],
+			"code": "extends CharacterBody2D\n\n@export var speed: float = 120.0\n@export var player_path: NodePath\n\n@onready var _player: Node2D = get_node(player_path) as Node2D\n\nfunc _physics_process(_delta: float) -> void:\n\tvar dir := (_player.global_position - global_position).normalized()\n\tvelocity = dir * speed\n\tmove_and_slide()\n",
+			"params": ["speed", "player_path"]
+		},
+		"state_machine": {
+			"phrases": ["state machine", "finite state machine", "fsm"],
+			"code": "enum State { IDLE, WALK, ATTACK }\n\nvar state: State = State.IDLE\n\nfunc _set_state(new_state: State) -> void:\n\tif state == new_state:\n\t\treturn\n\t_exit_state(state)\n\tstate = new_state\n\t_enter_state(state)\n\nfunc _enter_state(s: State) -> void:\n\tmatch s:\n\t\tState.IDLE:\n\t\t\tpass\n\t\tState.WALK:\n\t\t\tpass\n\t\tState.ATTACK:\n\t\t\tpass\n\nfunc _exit_state(_s: State) -> void:\n\tpass\n"
+		},
+		"navigation_agent_2d": {
+			"phrases": ["navigation agent 2d", "nav agent 2d", "pathfind 2d"],
+			"code": "extends CharacterBody2D\n\n@export var speed: float = 150.0\n@export var target_path: NodePath\n\n@onready var _agent: NavigationAgent2D = $NavigationAgent2D\n@onready var _target: Node2D = get_node(target_path) as Node2D\n\nfunc _physics_process(_delta: float) -> void:\n\t_agent.target_position = _target.global_position\n\tif _agent.is_navigation_finished():\n\t\tvelocity = Vector2.ZERO\n\t\tmove_and_slide()\n\t\treturn\n\tvar next := _agent.get_next_path_position()\n\tvelocity = (next - global_position).normalized() * speed\n\tmove_and_slide()\n",
+			"params": ["speed", "target_path"]
+		},
+		"navigation_agent_3d": {
+			"phrases": ["navigation agent 3d", "nav agent 3d", "pathfind 3d"],
+			"code": "extends CharacterBody3D\n\n@export var speed: float = 3.0\n@export var target_path: NodePath\n\n@onready var _agent: NavigationAgent3D = $NavigationAgent3D\n@onready var _target: Node3D = get_node(target_path) as Node3D\n\nfunc _physics_process(_delta: float) -> void:\n\t_agent.target_position = _target.global_position\n\tif _agent.is_navigation_finished():\n\t\tvelocity = Vector3.ZERO\n\t\tmove_and_slide()\n\t\treturn\n\tvar next := _agent.get_next_path_position()\n\tvelocity = (next - global_position).normalized() * speed\n\tmove_and_slide()\n",
+			"params": ["speed", "target_path"]
+		},
+		"look_for_player": {
+			"phrases": ["look for player", "enemy detect player", "vision cone"],
+			"code": "extends Area2D\n\nsignal player_spotted(player: Node2D)\n\nfunc _ready() -> void:\n\tbody_entered.connect(_on_body_entered)\n\nfunc _on_body_entered(body: Node2D) -> void:\n\tif body.is_in_group(\"player\"):\n\t\tplayer_spotted.emit(body)\n"
+		},
+		"attack_player": {
+			"phrases": ["enemy attack", "attack player", "enemy attacks"],
+			"code": "@export var damage: int = 10\n@export var attack_cooldown: float = 1.0\n\nvar _cooldown: float = 0.0\n\nfunc _process(delta: float) -> void:\n\t_cooldown = max(_cooldown - delta, 0.0)\n\nfunc try_attack(target: Node) -> void:\n\tif _cooldown > 0.0:\n\t\treturn\n\tif target.has_method(\"take_damage\"):\n\t\ttarget.take_damage(damage)\n\t_cooldown = attack_cooldown\n",
+			"params": ["damage", "attack_cooldown"]
+		},
+		"wander_ai": {
+			"phrases": ["wander ai", "random movement ai", "roam ai"],
+			"code": "@export var speed: float = 60.0\n@export var wander_radius: float = 200.0\n\nvar _target: Vector2 = Vector2.ZERO\nvar _origin: Vector2 = Vector2.ZERO\n\nfunc _ready() -> void:\n\t_origin = global_position\n\t_pick_target()\n\nfunc _pick_target() -> void:\n\t_target = _origin + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * wander_radius\n\nfunc _physics_process(_delta: float) -> void:\n\tvar dir := (_target - global_position).normalized()\n\tvelocity = dir * speed\n\tmove_and_slide()\n\tif global_position.distance_to(_target) < 8.0:\n\t\t_pick_target()\n",
+			"params": ["speed", "wander_radius"]
+		},
+		"flee_ai": {
+			"phrases": ["flee ai", "run away ai", "flee from player"],
+			"code": "@export var speed: float = 150.0\n@export var player_path: NodePath\n\n@onready var _player: Node2D = get_node(player_path) as Node2D\n\nfunc _physics_process(_delta: float) -> void:\n\tvar dir := (global_position - _player.global_position).normalized()\n\tvelocity = dir * speed\n\tmove_and_slide()\n",
+			"params": ["speed", "player_path"]
+		},
+		"detection_area": {
+			"phrases": ["detection area", "enemy detection", "vision area"],
+			"code": "extends Area2D\n\nsignal detected(body: Node2D)\nsignal lost(body: Node2D)\n\nfunc _ready() -> void:\n\tbody_entered.connect(_on_body_entered)\n\tbody_exited.connect(_on_body_exited)\n\nfunc _on_body_entered(body: Node2D) -> void:\n\tif body.is_in_group(\"player\"):\n\t\tdetected.emit(body)\n\nfunc _on_body_exited(body: Node2D) -> void:\n\tif body.is_in_group(\"player\"):\n\t\tlost.emit(body)\n"
+		},
+		"coin_pickup": {
+			"phrases": ["coin pickup", "pickup coin", "collect coin"],
+			"code": "extends Area2D\n\nsignal collected\n\nfunc _ready() -> void:\n\tbody_entered.connect(_on_body_entered)\n\nfunc _on_body_entered(body: Node2D) -> void:\n\tif body.is_in_group(\"player\"):\n\t\tcollected.emit()\n\t\tqueue_free()\n"
+		},
+		"health_pickup": {
+			"phrases": ["health pickup", "pickup health", "heart pickup"],
+			"code": "extends Area2D\n\n@export var heal_amount: int = 25\n\nfunc _ready() -> void:\n\tbody_entered.connect(_on_body_entered)\n\nfunc _on_body_entered(body: Node2D) -> void:\n\tif body.has_method(\"heal\"):\n\t\tbody.heal(heal_amount)\n\t\tqueue_free()\n",
+			"params": ["heal_amount"]
+		},
+		"powerup": {
+			"phrases": ["powerup", "power up", "power-up pickup"],
+			"code": "extends Area2D\n\n@export var duration: float = 8.0\n\nfunc _ready() -> void:\n\tbody_entered.connect(_on_body_entered)\n\nfunc _on_body_entered(body: Node2D) -> void:\n\tif body.has_method(\"apply_powerup\"):\n\t\tbody.apply_powerup(duration)\n\t\tqueue_free()\n",
+			"params": ["duration"]
+		},
+		"item_pickup_signal": {
+			"phrases": ["item pickup signal", "pickup signal"],
+			"code": "signal item_picked(item_id: String)\n\nfunc pickup(item_id: String) -> void:\n\titem_picked.emit(item_id)\n\tqueue_free()\n"
+		},
+		"auto_pickup_area": {
+			"phrases": ["auto pickup area", "magnet pickup", "attract pickup"],
+			"code": "@export var magnet_speed: float = 400.0\n@export var player_path: NodePath\n\n@onready var _player: Node2D = get_node(player_path) as Node2D\n\nfunc _process(delta: float) -> void:\n\tglobal_position = global_position.move_toward(_player.global_position, magnet_speed * delta)\n",
+			"params": ["magnet_speed", "player_path"]
+		},
+		"inventory_add": {
+			"phrases": ["add inventory", "inventory add item", "add to inventory"],
+			"code": "var inventory: Dictionary = {}\n\nfunc add_item(item_id: String, amount: int = 1) -> void:\n\tinventory[item_id] = inventory.get(item_id, 0) + amount\n"
+		},
+		"inventory_system": {
+			"phrases": ["inventory", "inventory system", "item inventory"],
+			"code": "signal inventory_changed(inventory: Dictionary)\n\nvar items: Dictionary = {}\n\nfunc add_item(id: String, amount: int = 1) -> void:\n\titems[id] = items.get(id, 0) + amount\n\tinventory_changed.emit(items)\n\nfunc remove_item(id: String, amount: int = 1) -> bool:\n\tif items.get(id, 0) < amount:\n\t\treturn false\n\titems[id] -= amount\n\tif items[id] <= 0:\n\t\titems.erase(id)\n\tinventory_changed.emit(items)\n\treturn true\n\nfunc has_item(id: String, amount: int = 1) -> bool:\n\treturn items.get(id, 0) >= amount\n"
+		},
+		"weapon_pickup": {
+			"phrases": ["weapon pickup", "pickup weapon"],
+			"code": "extends Area2D\n\n@export var weapon_scene: PackedScene\n\nfunc _ready() -> void:\n\tbody_entered.connect(_on_body_entered)\n\nfunc _on_body_entered(body: Node2D) -> void:\n\tif body.has_method(\"equip_weapon\"):\n\t\tbody.equip_weapon(weapon_scene)\n\t\tqueue_free()\n",
+			"params": ["weapon_scene"]
+		},
+		"health_bar_ui": {
+			"phrases": ["health bar ui", "health ui", "hp bar ui"],
+			"code": "extends ProgressBar\n\n@export var player_path: NodePath\n\n@onready var _player: Node = get_node(player_path)\n\nfunc _ready() -> void:\n\tif _player.has_signal(\"health_changed\"):\n\t\t_player.health_changed.connect(_on_health_changed)\n\nfunc _on_health_changed(current: int) -> void:\n\tvalue = float(current)\n",
+			"params": ["player_path"]
+		},
+		"score_display": {
+			"phrases": ["score display", "score ui", "show score"],
+			"code": "extends Label\n\nvar score: int = 0\n\nfunc add_score(amount: int) -> void:\n\tscore += amount\n\ttext = \"Score: %d\" % score\n"
+		},
+		"pause_menu": {
+			"phrases": ["pause menu", "pause screen", "pause ui"],
+			"code": "extends CanvasLayer\n\nfunc _ready() -> void:\n\tvisible = false\n\tprocess_mode = Node.PROCESS_MODE_ALWAYS\n\nfunc _unhandled_input(event: InputEvent) -> void:\n\tif event.is_action_pressed(\"ui_cancel\"):\n\t\ttoggle_pause()\n\nfunc toggle_pause() -> void:\n\tvar paused := not get_tree().paused\n\tget_tree().paused = paused\n\tvisible = paused\n",
+			"category": "ui",
+			"dimension": "ui",
+			"difficulty": "beginner",
+			"param_info": {},
+			"details": {
+				"what": "A CanvasLayer that pauses the game and shows/hides a menu when Escape is pressed.",
+				"where": "Attach to a CanvasLayer. Add a Panel or ColorRect as a child so it actually covers the screen.",
+				"before": "Nothing required. ui_cancel is Godot's built-in Escape action.",
+				"after": "Add Button nodes as children for Resume / Restart / Quit. Connect their pressed signals.",
+				"why_optimized": "Uses process_mode = ALWAYS so the menu keeps working while the game is paused.",
+				"mistakes": "Forgetting process_mode = ALWAYS means the pause menu itself is frozen and can't unpause.",
+				"related": ["game over screen", "main menu", "options menu"]
+			}
+		},
+		"game_over_screen": {
+			"phrases": ["game over screen", "game over", "death screen"],
+			"code": "extends CanvasLayer\n\n@export var menu_scene: PackedScene\n\nfunc show_game_over() -> void:\n\tvisible = true\n\tget_tree().paused = true\n\nfunc restart() -> void:\n\tget_tree().paused = false\n\tget_tree().reload_current_scene()\n",
+			"params": ["menu_scene"]
+		},
+		"main_menu": {
+			"phrases": ["main menu", "start menu", "title screen"],
+			"code": "@export var game_scene: PackedScene\n\nfunc _on_start_pressed() -> void:\n\tget_tree().change_scene_to_packed(game_scene)\n\nfunc _on_quit_pressed() -> void:\n\tget_tree().quit()\n",
+			"params": ["game_scene"]
+		},
+		"button_pressed": {
+			"phrases": ["button pressed", "connect button", "button signal"],
+			"code": "@onready var _button: Button = $Button\n\nfunc _ready() -> void:\n\t_button.pressed.connect(_on_button_pressed)\n\nfunc _on_button_pressed() -> void:\n\tprint(\"Button pressed\")\n"
+		},
+		"fade_in_ui": {
+			"phrases": ["fade in ui", "fade ui in", "ui fade"],
+			"code": "extends CanvasLayer\n\n@onready var _rect: ColorRect = $ColorRect\n\nfunc _ready() -> void:\n\t_rect.modulate.a = 1.0\n\tvar tween := create_tween()\n\ttween.tween_property(_rect, \"modulate:a\", 0.0, 0.6)\n"
+		},
+		"countdown_timer_ui": {
+			"phrases": ["countdown timer", "countdown ui", "timer display"],
+			"code": "extends Label\n\n@export var duration: float = 60.0\nvar _time_left: float = 0.0\n\nfunc _ready() -> void:\n\t_time_left = duration\n\nfunc _process(delta: float) -> void:\n\t_time_left = max(_time_left - delta, 0.0)\n\ttext = \"%02d:%02d\" % [int(_time_left) / 60, int(_time_left) % 60]\n",
+			"params": ["duration"]
+		},
+		"dialog_box": {
+			"phrases": ["dialog box", "dialogue box", "npc dialog"],
+			"code": "extends CanvasLayer\n\nsignal dialog_finished\n\n@onready var _label: Label = $Panel/Label\n\nvar _lines: Array[String] = []\nvar _index: int = 0\n\nfunc start_dialog(lines: Array[String]) -> void:\n\t_lines = lines\n\t_index = 0\n\tvisible = true\n\t_show_current()\n\nfunc _show_current() -> void:\n\tif _index >= _lines.size():\n\t\tvisible = false\n\t\tdialog_finished.emit()\n\t\treturn\n\t_label.text = _lines[_index]\n\nfunc _unhandled_input(event: InputEvent) -> void:\n\tif visible and event.is_action_pressed(\"ui_accept\"):\n\t\t_index += 1\n\t\t_show_current()\n"
+		},
+		"options_menu": {
+			"phrases": ["options menu", "settings menu", "config menu"],
+			"code": "@onready var _master_slider: HSlider = $MasterSlider\n\nfunc _ready() -> void:\n\t_master_slider.value_changed.connect(_on_master_changed)\n\nfunc _on_master_changed(value: float) -> void:\n\tvar bus := AudioServer.get_bus_index(\"Master\")\n\tAudioServer.set_bus_volume_db(bus, linear_to_db(value))\n"
+		},
+		"loading_screen": {
+			"phrases": ["loading screen", "loading ui", "async load"],
+			"code": "extends CanvasLayer\n\n@export var scene_path: String = \"\"\n\nfunc _ready() -> void:\n\tif scene_path.is_empty():\n\t\treturn\n\tResourceLoader.load_threaded_request(scene_path)\n\nfunc _process(_delta: float) -> void:\n\tvar progress: Array = []\n\tvar status := ResourceLoader.load_threaded_get_status(scene_path, progress)\n\tif status == ResourceLoader.THREAD_LOAD_LOADED:\n\t\tvar scene := ResourceLoader.load_threaded_get(scene_path) as PackedScene\n\t\tget_tree().change_scene_to_packed(scene)\n",
+			"params": ["scene_path"]
+		},
+		"tooltip": {
+			"phrases": ["tooltip", "hover tooltip", "show tooltip"],
+			"code": "extends Control\n\n@export var text: String = \"\"\n\nfunc _ready() -> void:\n\ttooltip_text = text\n\tmouse_entered.connect(_on_enter)\n\tmouse_exited.connect(_on_exit)\n\nfunc _on_enter() -> void:\n\tmodulate = Color(1.2, 1.2, 1.2)\n\nfunc _on_exit() -> void:\n\tmodulate = Color.WHITE\n",
+			"params": ["text"]
+		},
+		"save_game": {
+			"phrases": ["save game", "save", "save data"],
+			"code": "const SAVE_PATH := \"user://save.json\"\n\nfunc save_game(data: Dictionary) -> void:\n\tvar file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)\n\tif file:\n\t\tfile.store_string(JSON.stringify(data))\n\t\tfile.close()\n",
+			"params": ["data"]
+		},
+		"load_game": {
+			"phrases": ["load game", "load save", "load data"],
+			"code": "const SAVE_PATH := \"user://save.json\"\n\nfunc load_game() -> Dictionary:\n\tif not FileAccess.file_exists(SAVE_PATH):\n\t\treturn {}\n\tvar file := FileAccess.open(SAVE_PATH, FileAccess.READ)\n\tvar json := JSON.new()\n\tif json.parse(file.get_as_text()) != OK:\n\t\treturn {}\n\treturn json.data as Dictionary\n"
+		},
+		"save_json": {
+			"phrases": ["save json", "write json", "json save"],
+			"code": "func save_json(path: String, data: Dictionary) -> bool:\n\tvar file := FileAccess.open(path, FileAccess.WRITE)\n\tif file == null:\n\t\treturn false\n\tfile.store_string(JSON.stringify(data, \"\\t\"))\n\tfile.close()\n\treturn true\n",
+			"params": ["path", "data"]
+		},
+		"load_json": {
+			"phrases": ["load json", "read json", "json load"],
+			"code": "func load_json(path: String) -> Dictionary:\n\tif not FileAccess.file_exists(path):\n\t\treturn {}\n\tvar file := FileAccess.open(path, FileAccess.READ)\n\tvar json := JSON.new()\n\tif json.parse(file.get_as_text()) != OK:\n\t\treturn {}\n\treturn json.data as Dictionary\n",
+			"params": ["path"]
+		},
+		"autosave": {
+			"phrases": ["autosave", "auto save", "periodic save"],
+			"code": "@export var interval: float = 60.0\n\nfunc _ready() -> void:\n\tvar timer := Timer.new()\n\ttimer.wait_time = interval\n\ttimer.autostart = true\n\ttimer.timeout.connect(_autosave)\n\tadd_child(timer)\n\nfunc _autosave() -> void:\n\tprint(\"Autosaving...\")\n",
+			"params": ["interval"]
+		},
+		"settings_save": {
+			"phrases": ["save settings", "settings save", "config save"],
+			"code": "const SETTINGS_PATH := \"user://settings.cfg\"\n\nfunc save_setting(section: String, key: String, value: Variant) -> void:\n\tvar cfg := ConfigFile.new()\n\tcfg.load(SETTINGS_PATH)\n\tcfg.set_value(section, key, value)\n\tcfg.save(SETTINGS_PATH)\n",
+			"params": ["section", "key", "value"]
+		},
+		"save_slot": {
+			"phrases": ["save slot", "save slots", "multiple saves"],
+			"code": "func save_to_slot(slot: int, data: Dictionary) -> void:\n\tvar path := \"user://save_%d.json\" % slot\n\tvar file := FileAccess.open(path, FileAccess.WRITE)\n\tfile.store_string(JSON.stringify(data))\n\tfile.close()\n\nfunc load_from_slot(slot: int) -> Dictionary:\n\tvar path := \"user://save_%d.json\" % slot\n\tif not FileAccess.file_exists(path):\n\t\treturn {}\n\tvar file := FileAccess.open(path, FileAccess.READ)\n\tvar json := JSON.new()\n\tjson.parse(file.get_as_text())\n\treturn json.data as Dictionary\n",
+			"params": ["slot", "data"]
+		},
+		"config_file": {
+			"phrases": ["config file", "configfile", "config read write"],
+			"code": "const CONFIG_PATH := \"user://config.cfg\"\n\nfunc write_config(section: String, key: String, value: Variant) -> void:\n\tvar cfg := ConfigFile.new()\n\tcfg.load(CONFIG_PATH)\n\tcfg.set_value(section, key, value)\n\tcfg.save(CONFIG_PATH)\n\nfunc read_config(section: String, key: String, default: Variant) -> Variant:\n\tvar cfg := ConfigFile.new()\n\tcfg.load(CONFIG_PATH)\n\treturn cfg.get_value(section, key, default)\n"
+		},
+		"play_sound": {
+			"phrases": ["play sound", "sound effect", "sfx"],
+			"code": "@export var sound: AudioStream\n@onready var _player: AudioStreamPlayer = $AudioStreamPlayer\n\nfunc play() -> void:\n\tif sound:\n\t\t_player.stream = sound\n\t\t_player.play()\n",
+			"params": ["sound"]
+		},
+		"play_music": {
+			"phrases": ["play music", "background music", "bgm"],
+			"code": "@export var music: AudioStream\n@onready var _player: AudioStreamPlayer = $MusicPlayer\n\nfunc _ready() -> void:\n\tif music:\n\t\t_player.stream = music\n\t\t_player.play()\n",
+			"params": ["music"]
+		},
+		"audio_bus_volume": {
+			"phrases": ["audio bus volume", "volume control", "master volume"],
+			"code": "func set_bus_volume(bus_name: String, linear_volume: float) -> void:\n\tvar index := AudioServer.get_bus_index(bus_name)\n\tif index < 0:\n\t\treturn\n\tAudioServer.set_bus_volume_db(index, linear_to_db(clamp(linear_volume, 0.0, 1.0)))\n",
+			"params": ["bus_name", "linear_volume"]
+		},
+		"sound_effect_3d": {
+			"phrases": ["3d sound", "sound effect 3d", "spatial sound"],
+			"code": "@export var sound: AudioStream\n@onready var _player: AudioStreamPlayer3D = $AudioStreamPlayer3D\n\nfunc play_3d() -> void:\n\tif sound:\n\t\t_player.stream = sound\n\t\t_player.play()\n",
+			"params": ["sound"]
+		},
+		"footstep_sound": {
+			"phrases": ["footstep sound", "footsteps", "walk sound"],
+			"code": "@export var footstep_interval: float = 0.4\n@export var sounds: Array[AudioStream] = []\n\nvar _timer: float = 0.0\n\nfunc _process(delta: float) -> void:\n\tif velocity.length() < 5.0:\n\t\t_timer = 0.0\n\t\treturn\n\t_timer += delta\n\tif _timer >= footstep_interval:\n\t\t_timer = 0.0\n\t\t_play_random_footstep()\n\nfunc _play_random_footstep() -> void:\n\tif sounds.is_empty():\n\t\treturn\n\tvar stream: AudioStream = sounds.pick_random()\n\tprint(\"Play footstep: \", stream)\n",
+			"params": ["footstep_interval", "sounds"]
+		},
+		"mute_toggle": {
+			"phrases": ["mute toggle", "mute audio", "toggle mute"],
+			"code": "func toggle_mute() -> void:\n\tvar bus := AudioServer.get_bus_index(\"Master\")\n\tAudioServer.set_bus_mute(bus, not AudioServer.is_bus_mute(bus))\n"
+		},
+		"audio_fade": {
+			"phrases": ["audio fade", "fade audio", "fade music"],
+			"code": "func fade_audio(player: AudioStreamPlayer, target_db: float, duration: float) -> void:\n\tvar tween := create_tween()\n\ttween.tween_property(player, \"volume_db\", target_db, duration)\n",
+			"params": ["player", "target_db", "duration"]
+		},
+		"change_scene": {
+			"phrases": ["change scene", "switch scene", "load scene"],
+			"code": "func change_scene(path: String) -> void:\n\tget_tree().change_scene_to_file(path)\n",
+			"params": ["path"]
+		},
+		"reload_scene": {
+			"phrases": ["reload scene", "restart scene", "reset scene"],
+			"code": "func reload_scene() -> void:\n\tget_tree().reload_current_scene()\n"
+		},
+		"pause_game": {
+			"phrases": ["pause game", "pause", "resume game"],
+			"code": "func toggle_pause() -> void:\n\tget_tree().paused = not get_tree().paused\n"
+		},
+		"quit_game": {
+			"phrases": ["quit game", "exit game", "close game"],
+			"code": "func quit_game() -> void:\n\tget_tree().quit()\n"
+		},
+		"instantiate_scene": {
+			"phrases": ["instantiate scene", "spawn scene", "load scene instance"],
+			"code": "func spawn(scene: PackedScene, parent: Node, position: Vector2) -> Node:\n\tvar instance := scene.instantiate()\n\tparent.add_child(instance)\n\tif instance is Node2D:\n\t\tinstance.global_position = position\n\treturn instance\n",
+			"params": ["scene", "parent", "position"]
+		},
+		"spawn_prefab": {
+			"phrases": ["spawn prefab", "spawn enemy", "spawn object"],
+			"code": "@export var prefab: PackedScene\n@export var spawn_interval: float = 3.0\n\nfunc _ready() -> void:\n\tvar timer := Timer.new()\n\ttimer.wait_time = spawn_interval\n\ttimer.autostart = true\n\ttimer.timeout.connect(_spawn)\n\tadd_child(timer)\n\nfunc _spawn() -> void:\n\tif prefab:\n\t\tvar node := prefab.instantiate()\n\t\tadd_child(node)\n",
+			"params": ["prefab", "spawn_interval"]
+		},
+		"transition_scene": {
+			"phrases": ["scene transition", "fade transition", "fade to black"],
+			"code": "@onready var _overlay: ColorRect = $ColorRect\n\nfunc transition_to(path: String) -> void:\n\tvar tween := create_tween()\n\ttween.tween_property(_overlay, \"modulate:a\", 1.0, 0.4)\n\tawait tween.finished\n\tget_tree().change_scene_to_file(path)\n",
+			"params": ["path"]
+		},
+		"preload_scene": {
+			"phrases": ["preload scene", "preload resource", "preload"],
+			"code": "const SCENE := preload(\"res://path/to/scene.tscn\")\n\nfunc _ready() -> void:\n\tvar instance := SCENE.instantiate()\n\tadd_child(instance)\n"
+		},
+		"timer": {
+			"phrases": ["timer", "create timer", "delay"],
+			"code": "func delayed_call(delay: float, callback: Callable) -> void:\n\tget_tree().create_timer(delay).timeout.connect(callback)\n",
+			"params": ["delay", "callback"]
+		},
+		"signal_connect": {
+			"phrases": ["connect signal", "signal connect", "connect"],
+			"code": "func _ready() -> void:\n\tsome_node.some_signal.connect(_on_some_signal)\n\nfunc _on_some_signal(arg: Variant) -> void:\n\tprint(arg)\n"
+		},
+		"tween_move": {
+			"phrases": ["tween move", "move tween", "animate position"],
+			"code": "func move_to(target_position: Vector2, duration: float = 0.5) -> void:\n\tvar tween := create_tween()\n\ttween.tween_property(self, \"position\", target_position, duration).set_trans(Tween.TRANS_SINE)\n",
+			"params": ["target_position", "duration"]
+		},
+		"tween_fade": {
+			"phrases": ["tween fade", "fade tween", "fade out"],
+			"code": "func fade_to(target_alpha: float, duration: float = 0.5) -> void:\n\tvar tween := create_tween()\n\ttween.tween_property(self, \"modulate:a\", target_alpha, duration)\n",
+			"params": ["target_alpha", "duration"]
+		},
+		"random_range": {
+			"phrases": ["random number", "random range", "randf randi"],
+			"code": "func random_int(min_value: int, max_value: int) -> int:\n\treturn randi_range(min_value, max_value)\n\nfunc random_float(min_value: float, max_value: float) -> float:\n\treturn randf_range(min_value, max_value)\n"
+		},
+		"singleton_pattern": {
+			"phrases": ["singleton", "autoload singleton", "global singleton"],
+			"code": "extends Node\n\nstatic var _instance: Node = null\n\nstatic func instance() -> Node:\n\treturn _instance\n\nfunc _enter_tree() -> void:\n\tif _instance == null:\n\t\t_instance = self\n\telse:\n\t\tqueue_free()\n"
+		},
+		"debug_print": {
+			"phrases": ["debug print", "print debug", "log message"],
+			"code": "func debug_print(message: String) -> void:\n\tif OS.is_debug_build():\n\t\tprint(\"[DEBUG] \", message)\n",
+			"params": ["message"]
+		},
+		"array_shuffle": {
+			"phrases": ["shuffle array", "randomize array", "shuffle"],
+			"code": "func shuffle_array(array: Array) -> Array:\n\tvar copy := array.duplicate()\n\tcopy.shuffle()\n\treturn copy\n",
+			"params": ["array"]
+		},
+		"dictionary_loop": {
+			"phrases": ["loop dictionary", "iterate dictionary", "foreach dict"],
+			"code": "func loop_dict(data: Dictionary) -> void:\n\tfor key in data.keys():\n\t\tvar value: Variant = data[key]\n\t\tprint(key, \" = \", value)\n",
+			"params": ["data"]
+		},
+		"get_node_safe": {
+			"phrases": ["safe get node", "get node safe", "safe node lookup"],
+			"code": "func get_node_safe(path: NodePath) -> Node:\n\tif has_node(path):\n\t\treturn get_node(path)\n\tpush_warning(\"Node not found: \", path)\n\treturn null\n",
+			"params": ["path"]
+		},
+		"await_timer": {
+			"phrases": ["await timer", "wait seconds", "delay await"],
+			"code": "func wait(seconds: float) -> void:\n\tawait get_tree().create_timer(seconds).timeout\n",
+			"params": ["seconds"]
+		},
+		"raycast_2d": {
+			"phrases": ["raycast 2d", "ray cast 2d", "line of sight 2d"],
+			"code": "@export var ray_length: float = 500.0\n\nfunc cast_ray_2d(from: Vector2, direction: Vector2) -> Dictionary:\n\tvar space := get_world_2d().direct_space_state\n\tvar query := PhysicsRayQueryParameters2D.create(from, from + direction * ray_length)\n\treturn space.intersect_ray(query)\n",
+			"params": ["ray_length"]
+		},
+		"raycast_3d": {
+			"phrases": ["raycast 3d", "ray cast 3d", "line of sight 3d"],
+			"code": "@export var ray_length: float = 1000.0\n\nfunc cast_ray_3d(from: Vector3, direction: Vector3) -> Dictionary:\n\tvar space := get_world_3d().direct_space_state\n\tvar query := PhysicsRayQueryParameters3D.create(from, from + direction * ray_length)\n\treturn space.intersect_ray(query)\n",
+			"params": ["ray_length"],
+			"category": "utility",
+			"dimension": "3d",
+			"difficulty": "intermediate",
+			"param_info": {
+				"ray_length": {
+					"default": 1000.0,
+					"range": [10.0, 10000.0],
+					"what": "How far the ray reaches before giving up, in meters.",
+					"typical": "5 short interaction / 100 gun range / 1000+ long sight line",
+					"increase": "Sees further. Costs nothing extra — the ray just tests more distance.",
+					"decrease": "Shorter reach. Useful for interaction prompts and melee range."
+				}
+			},
+			"details": {
+				"what": "Casts a ray from a point in a direction and returns what it hits.",
+				"where": "Put on any Node3D that has access to the 3D world (not a CanvasLayer or pure UI node).",
+				"before": "Nothing required.",
+				"after": "Check the returned Dictionary for 'collider' — that's the object the ray hit.",
+				"why_optimized": "Uses direct_space_state instead of a RayCast3D node — no scene-tree overhead per cast.",
+				"mistakes": "Forgetting that an empty Dictionary means nothing was hit. Forgetting to update 'from' if the caster moves.",
+				"related": ["raycast 2d", "look for player", "melee attack"]
+			}
+		}
+	},
+	"blueprints": {
+		"player_3d": {
+			"title": "3D Character",
+			"phrases": ["3d character", "make a 3d character", "player 3d", "character 3d", "add player 3d"],
+			"category": "player",
+			"dimension": "3d",
+			"difficulty": "beginner",
+			"root": {
+				"type": "CharacterBody3D",
+				"name": "Player"
+			},
+			"required_children": [
+				{
+					"type": "CollisionShape3D",
+					"name": "CollisionShape3D",
+					"shape": "CapsuleShape3D"
+				},
+				{
+					"type": "MeshInstance3D",
+					"name": "Body",
+					"mesh": "BoxMesh"
+				}
+			],
+			"recommended_children": [
+				{
+					"type": "Camera3D",
+					"name": "Camera3D",
+					"transform": {"position": [0, 1.6, 0]}
+				}
+			],
+			"script": "character_movement_3d",
+			"required_actions": ["left", "right", "forward", "back", "jump"],
+			"setup_notes": [
+				"The CollisionShape3D has a CapsuleShape3D placeholder. Select it and adjust the height/radius to match your character.",
+				"The Body node has a BoxMesh placeholder. Replace it with your actual mesh (.glb or .obj) by dragging it onto the Body node.",
+				"The Camera3D is a placeholder. For first-person you'd delete it and use 'first person camera'. For third-person, use 'camera follow 3d'."
+			],
+			"next_steps": [
+				{"blueprint": "ground_plane_3d", "why": "So the player has something to stand on."},
+				{"snippet": "mouse look 3d", "why": "To look around with the mouse."},
+				{"snippet": "jump_3d", "why": "Add jumping to the movement script."},
+				{"blueprint": "pause_menu_ui", "why": "So you can pause the game."}
+			],
+			"mistakes": [
+				"Forgetting CollisionShape3D means the player falls through the floor.",
+				"Attaching the script to the Camera3D instead of the CharacterBody3D means nothing moves.",
+				"Making the CapsuleShape3D too small means the player clips into walls."
+			]
+		},
+		"player_2d_platformer": {
+			"title": "2D Platformer Character",
+			"phrases": ["2d character", "make a 2d character", "platformer character", "2d player", "player 2d"],
+			"category": "player",
+			"dimension": "2d",
+			"difficulty": "beginner",
+			"root": {
+				"type": "CharacterBody2D",
+				"name": "Player"
+			},
+			"required_children": [
+				{
+					"type": "CollisionShape2D",
+					"name": "CollisionShape2D",
+					"shape": "RectangleShape2D"
+				},
+				{
+					"type": "Sprite2D",
+					"name": "Sprite"
+				}
+			],
+			"recommended_children": [],
+			"script": "platformer_movement_2d",
+			"required_actions": ["left", "right", "jump"],
+			"setup_notes": [
+				"Drag your character sprite onto the Sprite node.",
+				"Adjust the CollisionShape2D rectangle to roughly match your sprite bounds."
+			],
+			"next_steps": [
+				{"snippet": "coyote time 2d", "why": "Makes jumping feel fair when you just walk off a ledge."},
+				{"snippet": "jump buffer 2d", "why": "Lets a jump pressed slightly early still register."},
+				{"snippet": "camera follow 2d", "why": "So the camera tracks the player."}
+			],
+			"mistakes": [
+				"Forgetting move_and_slide() means nothing happens on screen.",
+				"Using a square CollisionShape2D for a round character means visible gaps."
+			]
+		},
+		"ground_plane_3d": {
+			"title": "Ground Plane (3D)",
+			"phrases": ["ground plane", "ground 3d", "floor 3d", "add ground", "make ground"],
+			"category": "world",
+			"dimension": "3d",
+			"difficulty": "beginner",
+			"root": {
+				"type": "StaticBody3D",
+				"name": "Ground"
+			},
+			"required_children": [
+				{
+					"type": "CollisionShape3D",
+					"name": "CollisionShape3D",
+					"shape": "BoxShape3D"
+				},
+				{
+					"type": "MeshInstance3D",
+					"name": "Mesh",
+					"mesh": "PlaneMesh"
+				}
+			],
+			"recommended_children": [],
+			"script": "",
+			"required_actions": [],
+			"setup_notes": [
+				"The PlaneMesh defaults to 2x2 meters. In the Inspector, set its size to something large like 50x50.",
+				"The BoxShape3D needs to be thin and wide — set its size to (50, 0.2, 50) to match.",
+				"To color the ground, add a StandardMaterial3D to the MeshInstance3D's material slot."
+			],
+			"next_steps": [
+				{"blueprint": "player_3d", "why": "The player needs somewhere to stand."},
+				{"snippet": "change_scene", "why": "To move between scenes."}
+			],
+			"mistakes": [
+				"Forgetting the CollisionShape3D means the player falls through the ground.",
+				"Making the mesh bigger than the collision shape means parts of the floor are ghostly."
+			]
+		},
+		"pause_menu_ui": {
+			"title": "Pause Menu",
+			"phrases": ["pause menu blueprint", "add pause menu", "make pause menu"],
+			"category": "ui",
+			"dimension": "ui",
+			"difficulty": "beginner",
+			"root": {
+				"type": "CanvasLayer",
+				"name": "PauseMenu"
+			},
+			"required_children": [
+				{
+					"type": "ColorRect",
+					"name": "Overlay",
+					"properties": {
+						"color": [0, 0, 0, 0.6],
+						"anchors_preset": 15
+					}
+				},
+				{
+					"type": "VBoxContainer",
+					"name": "Buttons",
+					"properties": {
+						"anchors_preset": 8,
+						"offset_left": -80,
+						"offset_top": -60,
+						"offset_right": 80,
+						"offset_bottom": 60
+					}
+				}
+			],
+			"recommended_children": [],
+			"script": "pause_menu",
+			"required_actions": [],
+			"setup_notes": [
+				"Add Button nodes as children of the Buttons VBoxContainer.",
+				"Name them Resume, Restart, Quit — the script only handles opening/closing."
+			],
+			"next_steps": [
+				{"snippet": "main_menu", "why": "For the pause menu's Quit button to return to."},
+				{"snippet": "options_menu", "why": "To add a Settings button."}
+			],
+			"mistakes": [
+				"Forgetting process_mode = ALWAYS means the menu itself freezes.",
+				"The script is on CanvasLayer — attaching it to a Button instead breaks everything."
+			]
+		},
+		"enemy_patrol_2d": {
+			"title": "Patrolling Enemy (2D)",
+			"phrases": ["patrol enemy", "enemy blueprint", "2d enemy", "enemy patrol blueprint"],
+			"category": "enemy",
+			"dimension": "2d",
+			"difficulty": "beginner",
+			"root": {
+				"type": "CharacterBody2D",
+				"name": "Enemy"
+			},
+			"required_children": [
+				{
+					"type": "CollisionShape2D",
+					"name": "CollisionShape2D",
+					"shape": "RectangleShape2D"
+				},
+				{
+					"type": "Sprite2D",
+					"name": "Sprite"
+				}
+			],
+			"recommended_children": [],
+			"script": "enemy_patrol",
+			"required_actions": [],
+			"setup_notes": [
+				"In the Inspector, fill the 'points' array with Vector2 world positions the enemy should walk between.",
+				"Drag your enemy sprite onto the Sprite node."
+			],
+			"next_steps": [
+				{"snippet": "look for player", "why": "So the enemy can notice the player."},
+				{"snippet": "chase player", "why": "So the enemy can chase once it sees the player."},
+				{"snippet": "attack player", "why": "So the enemy can deal damage."}
+			],
+			"mistakes": [
+				"Forgetting to set patrol points means the enemy stands still.",
+				"Making the enemy's collision shape too large means it gets stuck on corners."
+			]
+		}
+	},
+	"templates": {
+		"starter_2d_platformer": {
+			"title": "2D Platformer Starter",
+			"description": "Bare minimum to get a playable 2D platformer scene.",
+			"steps": [
+				{"kind": "blueprint", "id": "ground_plane_2d", "note": "Actually uses 2D floor — created via snippet."},
+				{"kind": "blueprint", "id": "player_2d_platformer"},
+				{"kind": "snippet", "id": "camera_follow_2d", "note": "Add to a Camera2D child of the scene."},
+				{"kind": "snippet", "id": "pause_menu"}
+			]
+		},
+		"starter_3d_fps": {
+			"title": "3D FPS Starter",
+			"description": "Bare minimum to get a playable first-person scene.",
+			"steps": [
+				{"kind": "blueprint", "id": "ground_plane_3d"},
+				{"kind": "blueprint", "id": "player_3d"},
+				{"kind": "snippet", "id": "first_person_movement", "note": "Replaces the default movement on the Player."},
+				{"kind": "snippet", "id": "pause_menu"}
+			]
+		}
+	}
+}

@@ -1,0 +1,34 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Godot-specific exports
+*.translation
+
+# Godot editor/OS metadata
+.DS_Store
+Thumbs.db
+
+# Exported builds (do not commit — use GitHub Releases)
+/build/
+/export/
+*.apk
+*.aab
+*.exe
+*.dmg
+*.app
+*.pck
+*.zip
+
+# Python / editor swap
+*.tmp
+*.swp
+*~
+
+# IDE / editor folders
+.vscode/
+.idea/
+*.code-workspace
+
+# Termux / Android misc
+*.log
