@@ -61,7 +61,9 @@ func build(blueprint_id: String, library, editor_interface: EditorInterface) -> 
 	ur.create_action("Build Blueprint: " + blueprint_id)
 	ur.add_do_method(parent, "add_child", root)
 	ur.add_do_method(root, "set_owner", scene_root)
-	for child in root.get_children():
+	var all_descendants: Array = []
+	_collect_descendants(root, all_descendants)
+	for child in all_descendants:
 		ur.add_do_method(child, "set_owner", scene_root)
 	ur.add_do_reference(root)
 	ur.add_undo_method(parent, "remove_child", root)
@@ -96,6 +98,16 @@ func _resolve_parent(editor_interface: EditorInterface, scene_root: Node) -> Nod
 
 
 # =========================================================================
+# Descendants
+# =========================================================================
+
+func _collect_descendants(node: Node, out: Array) -> void:
+	for child in node.get_children():
+		out.append(child)
+		_collect_descendants(child, out)
+
+
+# =========================================================================
 # Node instantiation
 # =========================================================================
 
@@ -127,6 +139,15 @@ func _instantiate_node(spec: Dictionary) -> Node:
 
 	if spec.has("properties"):
 		_apply_properties(node, spec.properties)
+
+	if spec.has("children"):
+		var children: Array = spec.children
+		for child_spec in children:
+			if not (child_spec is Dictionary):
+				continue
+			var child: Node = _instantiate_node(child_spec)
+			if child != null:
+				node.add_child(child)
 
 	return node
 

@@ -53,9 +53,18 @@ On first run, a wizard offers starter templates — 2D platformer,
 The main view. Type a phrase, see the code or blueprint, insert
 or build it.
 
+Favorites appear as chips under the mode buttons. Click the star
+next to Copy to add or remove the current match. Favorites are
+saved between sessions.
+
+Suggestions appear as a "Try next:" row. After you insert or
+build something, the plugin suggests snippets from categories you
+haven't explored yet.
+
 ### Browse
-A category tree of everything in the library. Click any item to
-load it in Preview.
+A two-tier category tree of everything in the library. Categories
+(Movement, Camera, AI) split into subcategories (2D, 3D, Combat,
+Detection). Click any item to load it in the Preview tab.
 
 ### Learn
 Select a node in your Scene tree, click Refresh, and read what it
@@ -64,6 +73,9 @@ figuring out unfamiliar nodes.
 
 ### Tools
 - **Starter templates** — one-click scene setups.
+- **Custom Blueprints: Import / Export** — share your own saved
+  blueprints with anyone. JSON format, never overwrites existing
+  entries.
 - **Scene checker** — scans your scene for common mistakes
   (CharacterBody with no CollisionShape, pause menu that won't
   unpause, etc.).
@@ -82,6 +94,24 @@ removes the entire subtree.
 
 The Insert button changes to **Build** when you've matched a
 blueprint instead of a snippet.
+
+## Save your own nodes as blueprints
+
+Any node tree in your scene can become a reusable blueprint.
+
+1. Select a node in the Scene tree.
+2. Go to **Project → Tools → Save Selected Node as Blueprint...**
+3. Fill in the dialog — ID, title, phrases, category.
+4. Save.
+
+The blueprint is stored in your user library and appears in the
+Browse tab under Custom. Type one of its phrases later to rebuild
+it in any scene. Share it with **Tools → Export...**
+
+Saved blueprints capture: node type, name, position, collision
+shapes, primitive meshes, and a curated set of properties (text,
+color, anchors, fov, wait times). They do not capture scripts or
+custom resources — add those manually after rebuilding.
 
 ## Modes
 
@@ -130,6 +160,13 @@ whitespace collapsed). Then six tiers, in order:
 
 If nothing matches, the status line says so.
 
+## Version awareness
+
+The plugin checks your Godot version at load. If you're on a
+version older than 4.4, it shows an error. If you're on a version
+newer than 4.7.2, it shows a warning (so you know to report bugs
+if something breaks). Nothing is blocked either way.
+
 ## Adding your own snippets and blueprints
 
 The plugin reads from:
@@ -147,20 +184,20 @@ The plugin reads from:
 {
   "version": 2,
   "snippets": {
-    "my_custom_thing": {
-      "phrases": ["do the thing", "thing doer"],
-      "code": "func do_thing() -> void:\n\tprint(\"hello\")\n",
-      "params": [],
-      "category": "utility",
-      "details": {
-        "what": "Prints hello.",
-        "where": "Any script.",
-        "before": "None.",
-        "after": "None.",
+	"my_custom_thing": {
+	  "phrases": ["do the thing", "thing doer"],
+	  "code": "func do_thing() -> void:\n\tprint(\"hello\")\n",
+	  "params": [],
+	  "category": "utility",
+	  "details": {
+		"what": "Prints hello.",
+		"where": "Any script.",
+		"before": "None.",
+		"after": "None.",
 		"why_optimized": "It's one line.",
 		"mistakes": "None."
-      }
-    }
+	  }
+	}
   }
 }
 ```

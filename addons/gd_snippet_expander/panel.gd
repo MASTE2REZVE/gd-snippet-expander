@@ -9,10 +9,17 @@ const SceneCheckerScript := preload("res://addons/gd_snippet_expander/scene_chec
 const StarterTemplatesScript := preload("res://addons/gd_snippet_expander/starter_templates.gd")
 const WizardScript := preload("res://addons/gd_snippet_expander/wizard.gd")
 const DebugOverlayScript := preload("res://addons/gd_snippet_expander/debug_overlay.gd")
+const BlueprintSerializerScript := preload("res://addons/gd_snippet_expander/blueprint_serializer.gd")
+const SaveBlueprintDialogScript := preload("res://addons/gd_snippet_expander/save_blueprint_dialog.gd")
+const BlueprintIoScript := preload("res://addons/gd_snippet_expander/blueprint_io.gd")
+const VersionCheckScript := preload("res://addons/gd_snippet_expander/version_check.gd")
 
 const STATUS_COLOR_OK := Color(0.72, 0.85, 0.72)
 const STATUS_COLOR_WARN := Color(1.0, 0.85, 0.4)
 const STATUS_COLOR_ERR := Color(1.0, 0.6, 0.55)
+
+const STAR_EMPTY := "\u2606"
+const STAR_FILLED := "\u2605"
 
 var _editor_interface: EditorInterface = null
 var _library: GDASELibrary = null
@@ -23,17 +30,28 @@ var _scene_checker: Node = null
 var _starter_templates: Node = null
 var _wizard: Node = null
 var _debug_overlay: Node = null
+var _blueprint_serializer: Node = null
+var _blueprint_io: Node = null
+var _version_check = null
+var _save_dialog: ConfirmationDialog = null
+var _export_dialog: FileDialog = null
+var _import_dialog: FileDialog = null
 
 var _current_match: Dictionary = {}
 var _current_results: Array = []
 var _suppress_text_changed: bool = false
 
 @onready var _phrase_input: LineEdit = %PhraseInput
+@onready var _fav_button: Button = %FavButton
 @onready var _insert_button: Button = %InsertButton
 @onready var _copy_button: Button = %CopyButton
 @onready var _mode_code_only: Button = %ModeCodeOnly
 @onready var _mode_code_details: Button = %ModeCodeDetails
 @onready var _mode_full_details: Button = %ModeFullDetails
+@onready var _favorites_row: HBoxContainer = %FavoritesRow
+@onready var _favorites_chips: HBoxContainer = %FavoritesChips
+@onready var _suggestion_row: HBoxContainer = %SuggestionRow
+@onready var _suggestion_chips: HBoxContainer = %SuggestionChips
 @onready var _main_tabs: TabContainer = %MainTabs
 @onready var _results_list: ItemList = %ResultsList
 @onready var _warning_label: Label = %WarningLabel
@@ -49,6 +67,9 @@ var _suppress_text_changed: bool = false
 @onready var _learn_refresh_button: Button = %LearnRefreshButton
 @onready var _learn_text: TextEdit = %LearnText
 @onready var _templates_list: VBoxContainer = %TemplatesList
+@onready var _export_blueprints_button: Button = %ExportBlueprintsButton
+@onready var _import_blueprints_button: Button = %ImportBlueprintsButton
+@onready var _blueprint_io_status: Label = %BlueprintIoStatus
 @onready var _checker_button: Button = %CheckerButton
 @onready var _checker_output: TextEdit = %CheckerOutput
 @onready var _overlay_install_button: Button = %OverlayInstallButton
@@ -63,6 +84,7 @@ func _ready() -> void:
 	_ensure_library()
 	_ensure_helpers()
 
+	_fav_button.pressed.connect(_on_fav_pressed)
 	_insert_button.pressed.connect(_on_insert_pressed)
 	_copy_button.pressed.connect(_on_copy_pressed)
 	_phrase_input.text_changed.connect(_on_text_changed)
@@ -72,6 +94,8 @@ func _ready() -> void:
 	_mode_full_details.pressed.connect(_on_mode_full_details_pressed)
 	_results_list.item_selected.connect(_on_result_selected)
 	_learn_refresh_button.pressed.connect(_on_learn_refresh_pressed)
+	_export_blueprints_button.pressed.connect(_on_export_blueprints_pressed)
+	_import_blueprints_button.pressed.connect(_on_import_blueprints_pressed)
 	_checker_button.pressed.connect(_on_checker_pressed)
 	_overlay_install_button.pressed.connect(_on_overlay_install_pressed)
 	_overlay_remove_button.pressed.connect(_on_overlay_remove_pressed)
@@ -83,7 +107,9 @@ func _ready() -> void:
 	_clear_match()
 	_rebuild_browse_tree()
 	_rebuild_templates_list()
-	_set_status("Ready. Type a phrase and press Enter.")
+	_rebuild_favorites_row()
+	_rebuild_suggestions()
+	_set_initial_status()
 
 
 func set_editor_interface(ei: EditorInterface) -> void:
@@ -116,6 +142,26 @@ func _ensure_helpers() -> void:
 		_starter_templates = StarterTemplatesScript.new()
 	if _wizard == null:
 		_wizard = WizardScript.new()
+	if _blueprint_serializer == null:
+		_blueprint_serializer = BlueprintSerializerScript.new()
+	if _blueprint_io == null:
+		_blueprint_io = BlueprintIoScript.new()
+	if _version_check == null:
+		_version_check = VersionCheckScript.new()
+
+
+# =========================================================================
+# Initial status (version-aware)
+# =========================================================================
+
+func _set_initial_status() -> void:
+	if _version_check != null and _version_check.should_show_warning():
+		var level := str(_version_check.get_warning_level())
+		var msg := str(_version_check.get_warning_message())
+		var color := STATUS_COLOR_WARN if level == "warn" else STATUS_COLOR_ERR
+		_set_status(msg, color)
+		return
+	_set_status("Ready. Type a phrase and press Enter.", STATUS_COLOR_OK)
 
 
 # =========================================================================
@@ -225,6 +271,7 @@ func _apply_match(kind: String, id: String, phrase: String, overwrite_input: boo
 	_check_warnings()
 	_render_related()
 	_update_insert_button_label()
+	_update_fav_button()
 
 	var display_name := id
 	if kind == GDASELibrary.KIND_BLUEPRINT:
@@ -244,6 +291,7 @@ func _clear_match() -> void:
 	_preview_tabs.set_tab_title(0, "Code")
 	_preview_tabs.set_tab_title(2, "Params")
 	_update_insert_button_label()
+	_update_fav_button()
 
 
 # =========================================================================
@@ -274,6 +322,119 @@ func _on_result_selected(index: int) -> void:
 		return
 	var entry: Dictionary = _current_results[index]
 	_apply_match(str(entry.kind), str(entry.id), str(entry.phrase_matched), true)
+
+
+# =========================================================================
+# Favorites
+# =========================================================================
+
+func _on_fav_pressed() -> void:
+	if _current_match.is_empty():
+		return
+	var id := str(_current_match.get("id", ""))
+	if id.is_empty():
+		return
+	_library.toggle_favorite(id)
+	_update_fav_button()
+	_rebuild_favorites_row()
+	if _library.is_favorite(id):
+		_set_status("Added to favorites: " + id, STATUS_COLOR_OK)
+	else:
+		_set_status("Removed from favorites: " + id, STATUS_COLOR_OK)
+
+
+func _update_fav_button() -> void:
+	if _fav_button == null:
+		return
+	if _current_match.is_empty():
+		_fav_button.text = STAR_EMPTY
+		_fav_button.disabled = true
+		_fav_button.tooltip_text = "No match selected"
+		return
+	_fav_button.disabled = false
+	var id := str(_current_match.get("id", ""))
+	if _library.is_favorite(id):
+		_fav_button.text = STAR_FILLED
+		_fav_button.tooltip_text = "Remove from favorites"
+	else:
+		_fav_button.text = STAR_EMPTY
+		_fav_button.tooltip_text = "Add to favorites"
+
+
+func _rebuild_favorites_row() -> void:
+	if _favorites_chips == null or _favorites_row == null:
+		return
+	for child in _favorites_chips.get_children():
+		_favorites_chips.remove_child(child)
+		child.queue_free()
+	var favs: Array = _library.get_favorites()
+	if favs.is_empty():
+		_favorites_row.visible = false
+		return
+	for fav_id in favs:
+		var chip := Button.new()
+		chip.text = _entry_label(str(fav_id))
+		chip.add_theme_font_size_override("font_size", 12)
+		chip.tooltip_text = str(fav_id)
+		chip.pressed.connect(_on_favorite_chip_pressed.bind(str(fav_id)))
+		_favorites_chips.add_child(chip)
+	_favorites_row.visible = true
+
+
+func _entry_label(id: String) -> String:
+	if _library.has_blueprint(id):
+		var bp: Dictionary = _library.get_blueprint(id)
+		return str(bp.get("title", id))
+	var phrases: Array = _library.phrases_for(id)
+	if not phrases.is_empty():
+		return str(phrases[0])
+	return id
+
+
+func _on_favorite_chip_pressed(id: String) -> void:
+	if _library.has_snippet(id):
+		_apply_match(GDASELibrary.KIND_SNIPPET, id, "", true)
+	elif _library.has_blueprint(id):
+		_apply_match(GDASELibrary.KIND_BLUEPRINT, id, "", true)
+	else:
+		_set_status("Favorite entry no longer exists: " + id, STATUS_COLOR_WARN)
+		return
+	_main_tabs.current_tab = 0
+
+
+# =========================================================================
+# Suggestions
+# =========================================================================
+
+func _rebuild_suggestions() -> void:
+	if _suggestion_chips == null or _suggestion_row == null:
+		return
+	for child in _suggestion_chips.get_children():
+		_suggestion_chips.remove_child(child)
+		child.queue_free()
+	var suggestions: Array = _library.get_suggestions(3)
+	if suggestions.is_empty():
+		_suggestion_row.visible = false
+		return
+	for sid in suggestions:
+		var chip := Button.new()
+		chip.text = _entry_label(str(sid))
+		chip.add_theme_font_size_override("font_size", 12)
+		chip.tooltip_text = "Try: " + str(sid)
+		chip.pressed.connect(_on_suggestion_chip_pressed.bind(str(sid)))
+		_suggestion_chips.add_child(chip)
+	_suggestion_row.visible = true
+
+
+func _on_suggestion_chip_pressed(id: String) -> void:
+	if _library.has_snippet(id):
+		_apply_match(GDASELibrary.KIND_SNIPPET, id, "", true)
+	elif _library.has_blueprint(id):
+		_apply_match(GDASELibrary.KIND_BLUEPRINT, id, "", true)
+	else:
+		_set_status("Suggestion no longer exists: " + id, STATUS_COLOR_WARN)
+		return
+	_main_tabs.current_tab = 0
 
 
 # =========================================================================
@@ -635,6 +796,7 @@ func _do_snippet_insert() -> void:
 	code_edit.end_complex_operation()
 	code_edit.grab_focus()
 	_library.add_recent(id)
+	_rebuild_suggestions()
 	_set_status("Inserted %d characters." % code.length(), STATUS_COLOR_OK)
 
 
@@ -649,6 +811,7 @@ func _do_blueprint_build() -> void:
 	var result: Dictionary = _blueprint_builder.build(id, _library, _editor_interface)
 	if result.get("ok", false):
 		_library.add_recent(id)
+		_rebuild_suggestions()
 		_set_status(str(result.get("message", "Blueprint built.")), STATUS_COLOR_OK)
 	else:
 		_set_status("Build failed: " + str(result.get("message", "unknown error")), STATUS_COLOR_ERR)
@@ -748,6 +911,67 @@ func _on_template_apply_pressed(template_id: String) -> void:
 
 
 # =========================================================================
+# Tools tab — blueprint import/export
+# =========================================================================
+
+func _on_export_blueprints_pressed() -> void:
+	if _blueprint_io == null:
+		return
+	if _export_dialog == null:
+		_export_dialog = FileDialog.new()
+		_export_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+		_export_dialog.access = FileDialog.ACCESS_FILESYSTEM
+		_export_dialog.add_filter("*.json", "JSON files")
+		_export_dialog.title = "Export Blueprints"
+		_export_dialog.current_file = "gdse_blueprints.json"
+		_export_dialog.file_selected.connect(_on_export_path_selected)
+		add_child(_export_dialog)
+	_export_dialog.popup_centered_ratio(0.7)
+
+
+func _on_export_path_selected(path: String) -> void:
+	if _blueprint_io == null:
+		return
+	var result: Dictionary = _blueprint_io.export_to_file(path)
+	var msg := str(result.get("message", ""))
+	if result.get("ok", false):
+		_blueprint_io_status.text = msg
+		_set_status(msg, STATUS_COLOR_OK)
+	else:
+		_blueprint_io_status.text = msg
+		_set_status(msg, STATUS_COLOR_ERR)
+
+
+func _on_import_blueprints_pressed() -> void:
+	if _blueprint_io == null:
+		return
+	if _import_dialog == null:
+		_import_dialog = FileDialog.new()
+		_import_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+		_import_dialog.access = FileDialog.ACCESS_FILESYSTEM
+		_import_dialog.add_filter("*.json", "JSON files")
+		_import_dialog.title = "Import Blueprints"
+		_import_dialog.file_selected.connect(_on_import_path_selected)
+		add_child(_import_dialog)
+	_import_dialog.popup_centered_ratio(0.7)
+
+
+func _on_import_path_selected(path: String) -> void:
+	if _blueprint_io == null:
+		return
+	var result: Dictionary = _blueprint_io.import_from_file(path)
+	var msg := str(result.get("message", ""))
+	if result.get("ok", false):
+		_library.reload()
+		_rebuild_browse_tree()
+		_blueprint_io_status.text = msg
+		_set_status(msg, STATUS_COLOR_OK)
+	else:
+		_blueprint_io_status.text = msg
+		_set_status(msg, STATUS_COLOR_ERR)
+
+
+# =========================================================================
 # Tools tab — scene checker
 # =========================================================================
 
@@ -798,6 +1022,103 @@ func _get_active_code_edit() -> CodeEdit:
 		return null
 	var base := current.get_base_editor()
 	return base as CodeEdit
+
+
+# =========================================================================
+# Save-as-Blueprint
+# =========================================================================
+
+func prompt_save_blueprint() -> void:
+	if _editor_interface == null:
+		_set_status("No editor interface.", STATUS_COLOR_WARN)
+		return
+	var selection := _editor_interface.get_selection()
+	if selection == null:
+		_set_status("No selection.", STATUS_COLOR_WARN)
+		return
+	var selected := selection.get_selected_nodes()
+	if selected.is_empty():
+		_set_status("Select a node in the Scene tree first.", STATUS_COLOR_WARN)
+		return
+	var node: Node = selected[0]
+	if node == null or not is_instance_valid(node):
+		_set_status("Selected node is not valid.", STATUS_COLOR_WARN)
+		return
+	if _blueprint_serializer == null:
+		_blueprint_serializer = BlueprintSerializerScript.new()
+	_open_save_dialog(node)
+
+
+func _open_save_dialog(node: Node) -> void:
+	if _save_dialog == null:
+		_save_dialog = SaveBlueprintDialogScript.new()
+		add_child(_save_dialog)
+		_save_dialog.blueprint_confirmed.connect(_on_blueprint_save_confirmed)
+	_save_dialog.set_meta("source_node", node)
+	var suggested_id := _suggest_id(str(node.name))
+	_save_dialog.call("prefill", suggested_id, str(node.name), _suggest_phrases(str(node.name)))
+	_save_dialog.popup_centered()
+
+
+func _suggest_id(node_name: String) -> String:
+	var s := node_name.to_lower()
+	var out := ""
+	for i in range(s.length()):
+		var c := s[i]
+		if (c >= "a" and c <= "z") or (c >= "0" and c <= "9"):
+			out += c
+		elif c == " " or c == "_" or c == "-":
+			out += "_"
+	if out.is_empty():
+		out = "blueprint"
+	return "custom_" + out
+
+
+func _suggest_phrases(node_name: String) -> String:
+	var s := node_name.to_lower().replace("_", " ")
+	var words := s.split(" ", false)
+	var out: Array = []
+	for w in words:
+		out.append(str(w))
+	return ", ".join(out)
+
+
+func _on_blueprint_save_confirmed(id: String, title_text: String, phrases: Array, category: String, subcategory: String) -> void:
+	if _blueprint_serializer == null or _save_dialog == null:
+		return
+	var source = _save_dialog.get_meta("source_node")
+	if source == null or not is_instance_valid(source):
+		_set_status("Source node is gone.", STATUS_COLOR_WARN)
+		return
+	var spec: Dictionary = _blueprint_serializer.serialize(source)
+	if spec.is_empty():
+		_set_status("Could not serialize node.", STATUS_COLOR_ERR)
+		return
+
+	var data := {
+		"title": title_text,
+		"phrases": phrases,
+		"category": category,
+		"subcategory": subcategory,
+		"dimension": "any",
+		"difficulty": "custom",
+		"root": spec,
+		"required_children": [],
+		"recommended_children": [],
+		"script": "",
+		"required_actions": [],
+		"setup_notes": ["Custom blueprint saved from the scene tree."],
+		"next_steps": [],
+		"mistakes": []
+	}
+
+	var result: Dictionary = _library.add_user_blueprint(id, data)
+	if not result.get("ok", false):
+		_set_status("Save failed: " + str(result.get("message", "unknown")), STATUS_COLOR_ERR)
+		return
+
+	_rebuild_browse_tree()
+	_set_status("Saved custom blueprint: " + title_text + " (id: " + id + ")", STATUS_COLOR_OK)
 
 
 # =========================================================================

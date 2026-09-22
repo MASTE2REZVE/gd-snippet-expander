@@ -29,6 +29,11 @@ const FUZZY_MAX_DISTANCE := 2
 const FUZZY_MIN_LENGTH := 4
 const TOKEN_MATCH_RATIO := 0.5
 
+const SUGGESTION_PRIORITY := [
+	"movement", "camera", "health", "combat", "ai",
+	"pickup", "ui", "save", "audio", "scene", "utility"
+]
+
 # --- State ---------------------------------------------------------------
 
 var _snippets: Dictionary = {}
@@ -295,6 +300,12 @@ func get_category(id: String) -> String:
 	return str(_snippets[id].get("category", ""))
 
 
+func get_subcategory(id: String) -> String:
+	if not _snippets.has(id):
+		return ""
+	return str(_snippets[id].get("subcategory", ""))
+
+
 func get_dimension(id: String) -> String:
 	if not _snippets.has(id):
 		return ""
@@ -347,8 +358,20 @@ func get_blueprint_setup_notes(id: String) -> Array:
 	return _blueprints[id].get("setup_notes", [])
 
 
+func get_blueprint_category(id: String) -> String:
+	if not _blueprints.has(id):
+		return ""
+	return str(_blueprints[id].get("category", ""))
+
+
+func get_blueprint_subcategory(id: String) -> String:
+	if not _blueprints.has(id):
+		return ""
+	return str(_blueprints[id].get("subcategory", ""))
+
+
 # =========================================================================
-# Category index
+# Category index (flat, backward compatible)
 # =========================================================================
 
 func get_category_index() -> Dictionary:
@@ -361,13 +384,51 @@ func get_category_index() -> Dictionary:
 			out[cat] = {"snippets": [], "blueprints": []}
 		out[cat].snippets.append(id)
 	for id in _blueprints.keys():
-		var cat := str(_blueprints[id].get("category", "uncategorized"))
+		var cat := get_blueprint_category(id)
 		if cat.is_empty():
 			cat = "uncategorized"
 		if not out.has(cat):
 			out[cat] = {"snippets": [], "blueprints": []}
 		out[cat].blueprints.append(id)
 	return out
+
+
+# =========================================================================
+# Browse tree (two-tier)
+# =========================================================================
+
+func get_browse_tree() -> Dictionary:
+	var out: Dictionary = {}
+	for id in _snippets.keys():
+		var cat := get_category(id)
+		if cat.is_empty():
+			cat = "uncategorized"
+		var sub := get_subcategory(id)
+		if sub.is_empty():
+			sub = "_ungrouped"
+		_ensure_bucket(out, cat, sub)
+		out[cat][sub].snippets.append(id)
+	for id in _blueprints.keys():
+		var cat := get_blueprint_category(id)
+		if cat.is_empty():
+			cat = "uncategorized"
+		var sub := get_blueprint_subcategory(id)
+		if sub.is_empty():
+			sub = "_ungrouped"
+		_ensure_bucket(out, cat, sub)
+		out[cat][sub].blueprints.append(id)
+	for cat in out.keys():
+		for sub in out[cat].keys():
+			out[cat][sub].snippets.sort()
+			out[cat][sub].blueprints.sort()
+	return out
+
+
+func _ensure_bucket(tree: Dictionary, cat: String, sub: String) -> void:
+	if not tree.has(cat):
+		tree[cat] = {}
+	if not tree[cat].has(sub):
+		tree[cat][sub] = {"snippets": [], "blueprints": []}
 
 
 # =========================================================================
@@ -440,6 +501,40 @@ func add_recent(id: String) -> void:
 		recents.pop_back()
 	_settings["recents"] = recents
 	save_settings()
+
+
+# =========================================================================
+# Suggestions
+# =========================================================================
+
+func get_suggestions(max_count: int = 3) -> Array:
+	var recents: Array = get_recents()
+	var used_categories: Dictionary = {}
+	var used_ids: Dictionary = {}
+	for uid in recents:
+		var sid := str(uid)
+		used_ids[sid] = true
+		var cat := get_category(sid)
+		if not cat.is_empty():
+			used_categories[cat] = true
+
+	var suggestions: Array = []
+	for cat in SUGGESTION_PRIORITY:
+		if used_categories.has(cat):
+			continue
+		var picked := ""
+		for id in _snippets.keys():
+			if used_ids.has(id):
+				continue
+			if get_category(str(id)) != cat:
+				continue
+			picked = str(id)
+			break
+		if not picked.is_empty():
+			suggestions.append(picked)
+		if suggestions.size() >= max_count:
+			break
+	return suggestions
 
 
 # =========================================================================
@@ -527,6 +622,39 @@ func remove_user_snippet(id: String) -> Dictionary:
 
 
 # =========================================================================
+# User blueprint CRUD
+# =========================================================================
+
+func add_user_blueprint(id: String, data: Dictionary) -> Dictionary:
+	if id.strip_edges().is_empty():
+		return {"ok": false, "message": "id is required."}
+	var user_data := _read_json(USER_PATH)
+	if user_data.is_empty():
+		user_data = {"version": 2, "snippets": {}, "blueprints": {}}
+	if not user_data.has("blueprints"):
+		user_data["blueprints"] = {}
+	user_data.blueprints[id] = data
+	_ensure_user_dir()
+	if not _write_json(USER_PATH, user_data):
+		return {"ok": false, "message": "Failed to write user library."}
+	_merge_from_file(USER_PATH)
+	return {"ok": true, "id": id}
+
+
+func remove_user_blueprint(id: String) -> Dictionary:
+	if not FileAccess.file_exists(USER_PATH):
+		return {"ok": false, "message": "No user library file."}
+	var user_data := _read_json(USER_PATH)
+	if user_data.is_empty() or not user_data.has("blueprints") or not user_data.blueprints.has(id):
+		return {"ok": false, "message": "Blueprint not found in user library."}
+	user_data.blueprints.erase(id)
+	if not _write_json(USER_PATH, user_data):
+		return {"ok": false, "message": "Failed to write user library."}
+	load_all()
+	return {"ok": true, "id": id}
+
+
+# =========================================================================
 # Internal — normalization
 # =========================================================================
 
@@ -563,6 +691,7 @@ func _make_result(id: String, phrase: String) -> Dictionary:
 		"details": s.get("details", {}),
 		"required_actions": s.get("required_actions", []),
 		"category": str(s.get("category", "")),
+		"subcategory": str(s.get("subcategory", "")),
 		"dimension": str(s.get("dimension", "")),
 		"difficulty": str(s.get("difficulty", "")),
 		"scene_tree": s.get("scene_tree", []),
@@ -586,6 +715,7 @@ func _make_blueprint_result(id: String, phrase: String) -> Dictionary:
 		"next_steps": b.get("next_steps", []),
 		"mistakes": b.get("mistakes", []),
 		"category": str(b.get("category", "")),
+		"subcategory": str(b.get("subcategory", "")),
 		"dimension": str(b.get("dimension", "")),
 		"difficulty": str(b.get("difficulty", "")),
 		"phrase_matched": phrase,
@@ -608,24 +738,44 @@ func _merge_dict(data: Dictionary) -> void:
 	var snippets: Dictionary = data.get("snippets", {})
 	for id in snippets.keys():
 		var entry: Dictionary = snippets[id]
-		if not entry.has("phrases") or not entry.has("code"):
-			continue
-		_snippets[id] = entry
-		for phrase in entry.phrases:
-			var norm := _normalize(str(phrase))
-			if not norm.is_empty():
-				_phrase_index[norm] = id
+		if _snippets.has(id):
+			var existing: Dictionary = _snippets[id]
+			for key in entry.keys():
+				existing[key] = entry[key]
+			if entry.has("phrases"):
+				for phrase in entry.phrases:
+					var norm := _normalize(str(phrase))
+					if not norm.is_empty():
+						_phrase_index[norm] = id
+		else:
+			if not entry.has("phrases") or not entry.has("code"):
+				continue
+			_snippets[id] = entry
+			for phrase in entry.phrases:
+				var norm := _normalize(str(phrase))
+				if not norm.is_empty():
+					_phrase_index[norm] = id
 
 	var blueprints: Dictionary = data.get("blueprints", {})
 	for id in blueprints.keys():
 		var entry: Dictionary = blueprints[id]
-		if not entry.has("phrases") or not entry.has("root"):
-			continue
-		_blueprints[id] = entry
-		for phrase in entry.phrases:
-			var norm := _normalize(str(phrase))
-			if not norm.is_empty():
-				_blueprint_phrase_index[norm] = id
+		if _blueprints.has(id):
+			var existing: Dictionary = _blueprints[id]
+			for key in entry.keys():
+				existing[key] = entry[key]
+			if entry.has("phrases"):
+				for phrase in entry.phrases:
+					var norm := _normalize(str(phrase))
+					if not norm.is_empty():
+						_blueprint_phrase_index[norm] = id
+		else:
+			if not entry.has("phrases") or not entry.has("root"):
+				continue
+			_blueprints[id] = entry
+			for phrase in entry.phrases:
+				var norm := _normalize(str(phrase))
+				if not norm.is_empty():
+					_blueprint_phrase_index[norm] = id
 
 	var templates: Dictionary = data.get("templates", {})
 	for id in templates.keys():

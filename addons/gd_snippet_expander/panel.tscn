@@ -28,6 +28,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "e.g. move forward, 3d character, pause menu..."
 
+[node name="FavButton" type="Button" parent="InputRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 0)
+layout_mode = 2
+tooltip_text = "Toggle favorite"
+
 [node name="InsertButton" type="Button" parent="InputRow"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -67,6 +73,38 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_modes")
 button_pressed = true
 text = "Full details"
+
+[node name="FavoritesRow" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="FavoritesLabel" type="Label" parent="FavoritesRow"]
+layout_mode = 2
+text = "Favorites:"
+
+[node name="FavoritesChips" type="HBoxContainer" parent="FavoritesRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="SuggestionRow" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SuggestionLabel" type="Label" parent="SuggestionRow"]
+layout_mode = 2
+text = "Try next:"
+
+[node name="SuggestionChips" type="HBoxContainer" parent="SuggestionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
 [node name="MainTabs" type="TabContainer" parent="."]
 unique_name_in_owner = true
@@ -191,6 +229,33 @@ theme_override_constants/separation = 4
 [node name="Sep1" type="HSeparator" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
 layout_mode = 2
 
+[node name="BlueprintIoLabel" type="Label" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+layout_mode = 2
+text = "Custom Blueprints: Import / Export"
+
+[node name="BlueprintIoRow" type="HBoxContainer" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ExportBlueprintsButton" type="Button" parent="MainTabs/Tools/ToolsScroll/ToolsInner/BlueprintIoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Export..."
+
+[node name="ImportBlueprintsButton" type="Button" parent="MainTabs/Tools/ToolsScroll/ToolsInner/BlueprintIoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Import..."
+
+[node name="BlueprintIoStatus" type="Label" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+text = ""
+
+[node name="Sep2" type="HSeparator" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+layout_mode = 2
+
 [node name="CheckerLabel" type="Label" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
 layout_mode = 2
 text = "Scene Checker"
@@ -206,7 +271,7 @@ custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
 editable = false
 
-[node name="Sep2" type="HSeparator" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
+[node name="Sep3" type="HSeparator" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
 layout_mode = 2
 
 [node name="DebugLabel" type="Label" parent="MainTabs/Tools/ToolsScroll/ToolsInner"]
