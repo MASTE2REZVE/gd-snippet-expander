@@ -20,6 +20,10 @@ func build(blueprint_id: String, library, editor_interface: EditorInterface) -> 
 		return {"ok": false, "message": "No scene open. Open or create a scene first."}
 
 	var parent: Node = _resolve_parent(editor_interface, scene_root)
+	if parent == null or not is_instance_valid(parent):
+		return {"ok": false, "message": "Parent node is no longer valid. Click the scene root in the Scene tree and try again."}
+	if not parent.is_inside_tree():
+		return {"ok": false, "message": "Parent node is not in the scene tree. Click the scene root and try again."}
 
 	var root_spec: Dictionary = bp.get("root", {})
 	if root_spec.is_empty():
@@ -85,7 +89,9 @@ func _resolve_parent(editor_interface: EditorInterface, scene_root: Node) -> Nod
 	if selection != null:
 		var selected := selection.get_selected_nodes()
 		if not selected.is_empty():
-			return selected[0]
+			var candidate: Node = selected[0]
+			if is_instance_valid(candidate) and candidate.is_inside_tree():
+				return candidate
 	return scene_root
 
 

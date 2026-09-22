@@ -191,7 +191,7 @@ func _run_search(query: String) -> void:
 	_main_tabs.current_tab = 0
 
 
-func _apply_match(kind: String, id: String, phrase: String) -> void:
+func _apply_match(kind: String, id: String, phrase: String, overwrite_input: bool = false) -> void:
 	if kind == GDASELibrary.KIND_SNIPPET:
 		var data: Dictionary = _library.get_snippet(id).duplicate()
 		if data.is_empty():
@@ -214,11 +214,12 @@ func _apply_match(kind: String, id: String, phrase: String) -> void:
 		_clear_match()
 		return
 
-	_suppress_text_changed = true
-	var phrases: Array = _library.phrases_for(id) if kind == GDASELibrary.KIND_SNIPPET else _library.blueprint_phrases_for(id)
-	if not phrases.is_empty():
-		_phrase_input.text = str(phrases[0])
-	_suppress_text_changed = false
+	if overwrite_input:
+		_suppress_text_changed = true
+		var phrases: Array = _library.phrases_for(id) if kind == GDASELibrary.KIND_SNIPPET else _library.blueprint_phrases_for(id)
+		if not phrases.is_empty():
+			_phrase_input.text = str(phrases[0])
+		_suppress_text_changed = false
 
 	_render_preview()
 	_check_warnings()
@@ -272,7 +273,7 @@ func _on_result_selected(index: int) -> void:
 	if index < 0 or index >= _current_results.size():
 		return
 	var entry: Dictionary = _current_results[index]
-	_apply_match(str(entry.kind), str(entry.id), str(entry.phrase_matched))
+	_apply_match(str(entry.kind), str(entry.id), str(entry.phrase_matched), true)
 
 
 # =========================================================================
@@ -683,7 +684,7 @@ func _rebuild_browse_tree() -> void:
 
 
 func _on_browse_item_selected(kind: String, id: String) -> void:
-	_apply_match(kind, id, "")
+	_apply_match(kind, id, "", true)
 	_main_tabs.current_tab = 0
 
 
