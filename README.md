@@ -67,8 +67,8 @@ A two-tier category tree of everything in the library. Categories
 Detection). Click any item to load it in the Preview tab.
 
 ### Learn
-Select a node in your Scene tree, click Refresh, and read what it
-does, what children it needs, and common mistakes. Good for
+Select a node in your Scene tree, click Refresh, and read what
+it does, what children it needs, and common mistakes. Good for
 figuring out unfamiliar nodes.
 
 ### Tools
@@ -81,6 +81,16 @@ figuring out unfamiliar nodes.
   unpause, etc.).
 - **Debug overlay** — installs an FPS / draw call / memory overlay
   into the current scene. Press F3 in-game to toggle.
+
+## Menu commands
+
+**Project → Tools → Save Selected Node as Blueprint...** — Turn
+any node tree in your scene into a reusable blueprint.
+
+**Project → Tools → Library Report...** — See what's in your
+library: total counts, progress toward targets, every entry
+grouped by category and subcategory. Copy to clipboard or save
+to a text file.
 
 ## Two kinds of things: snippets and blueprints
 
@@ -138,12 +148,17 @@ Your choice is remembered between sessions.
 | `pause menu` | CanvasLayer pause overlay |
 | `save game` | JSON save to user:// |
 | `raycast 3d` | Physics raycast with tunable range |
+| `play animation` | AnimationPlayer play with existence check |
+| `animation state` | AnimationTree state machine travel |
+| `dissolve shader` | Noise-based dissolve with burning edge |
+| `particle explosion` | One-shot burst, self-deletes |
 | `3d character` | *Blueprint* — full 3D player tree |
+| `animated player 2d` | *Blueprint* — 2D player with AnimatedSprite2D |
+| `boss health bar` | *Blueprint* — full boss bar with damage lag |
 | `ground plane` | *Blueprint* — walkable 3D ground |
 | `patrol enemy` | *Blueprint* — 2D patrolling enemy |
-| `pause menu blueprint` | *Blueprint* — pause menu scene |
 
-The bundled library has 111 snippets and 20 blueprints, plus 5
+The bundled library has 137 snippets, 29 blueprints, and 5
 starter templates.
 
 ## Matching behavior
@@ -163,9 +178,9 @@ If nothing matches, the status line says so.
 ## Version awareness
 
 The plugin checks your Godot version at load. If you're on a
-version older than 4.4, it shows an error. If you're on a version
-newer than 4.7.2, it shows a warning (so you know to report bugs
-if something breaks). Nothing is blocked either way.
+version older than 4.4, it shows an error. If you're on a
+version newer than 4.7.2, it shows a warning (so you know to
+report bugs if something breaks). Nothing is blocked either way.
 
 ## Adding your own snippets and blueprints
 
@@ -180,27 +195,25 @@ The plugin reads from:
 
 ### User library format
 
-```json
-{
-  "version": 2,
-  "snippets": {
-	"my_custom_thing": {
-	  "phrases": ["do the thing", "thing doer"],
-	  "code": "func do_thing() -> void:\n\tprint(\"hello\")\n",
-	  "params": [],
-	  "category": "utility",
-	  "details": {
-		"what": "Prints hello.",
-		"where": "Any script.",
-		"before": "None.",
-		"after": "None.",
-		"why_optimized": "It's one line.",
-		"mistakes": "None."
-	  }
-	}
-  }
-}
-```
+    {
+      "version": 2,
+      "snippets": {
+        "my_custom_thing": {
+          "phrases": ["do the thing", "thing doer"],
+          "code": "func do_thing() -> void:\n\tprint(\"hello\")\n",
+          "params": [],
+          "category": "utility",
+          "details": {
+            "what": "Prints hello.",
+            "where": "Any script.",
+            "before": "None.",
+            "after": "None.",
+			"why_optimized": "It's one line.",
+			"mistakes": "None."
+          }
+        }
+      }
+    }
 
 Only `phrases` and `code` are required. Every other field is
 optional — missing fields just show fewer details.

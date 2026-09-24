@@ -10,6 +10,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [1.2.0] - 2026-09-24
+
+Library expansion. Adds animation, shaders, particle effects, and
+several effect blueprints. Adds a Library Report tool.
+
+### Added
+
+#### Animation snippets (14)
+- AnimationPlayer basics: `animation_play`, `animation_loop`,
+  `animation_queue`, `animation_signal`, `animation_speed`.
+- Tween sequences: `tween_sequence`, `tween_parallel`,
+  `tween_callback`.
+- AnimationTree: `animation_tree_setup`, `animation_tree_state`,
+  `animation_tree_param`, `animation_blend_2d`,
+  `animation_state_machine_2d`, `animation_oneshot`.
+
+#### Shader snippets (6)
+- `shader_dissolve` — noise-based dissolve with burning edge.
+- `shader_flash` — tint toward a color for damage feedback.
+- `shader_outline` — 8-direction outline around opaque pixels.
+- `shader_damage_flicker` — invincibility flicker.
+- `shader_crt` — full-screen CRT with scanlines and curvature.
+- `shader_wave` — sine-wave vertex distortion.
+
+#### Particle snippets (6)
+- `particle_explosion` — one-shot burst, self-deletes.
+- `particle_trail` — trailing emitter for moving objects.
+- `particle_dust` — dust puff for landings and footsteps.
+- `particle_sparkle` — ambient pickup sparkles.
+- `particle_smoke` — continuous upward smoke.
+- All are programmatic — no scene file needed.
+
+#### Blueprints (9)
+- `animated_player_2d` — CharacterBody2D with AnimatedSprite2D
+  and AnimationPlayer.
+- `animated_player_3d` — CharacterBody3D with model and
+  AnimationPlayer.
+- `screen_effect_layer` — CanvasLayer + ColorRect ready for a
+  fullscreen shader.
+- `impact_effect` — particles + sound, self-deletes on hit.
+- `death_effect` — burst + smoke + sound for enemy deaths.
+- `projectile_with_trail` — Area2D bullet with a particle trail
+  and optional glow.
+- `enemy_spawner` — Timer-driven enemy spawn point.
+- `damage_popup_scene` — floating damage number with tween
+  animation.
+- `boss_health_bar` — full boss bar with name label and damage
+  lag effect.
+
+#### Library Report
+- New menu command: **Project → Tools → Library Report...**
+- Shows total counts, progress toward targets (450 snippets /
+  80 blueprints / 15 templates), and every entry grouped by
+  category and subcategory.
+- Copy to clipboard or save to a text file.
+- Loads from the real `GDASELibrary` so counts are always
+  deduplicated and accurate.
+
+#### Library maintenance
+- Added `library/zz_subcategories_extra.gd` to fill a gap in the
+  subcategory overrides (`camera_look_at_mouse` was showing as
+  uncategorized).
+
+### Changed
+- README rewritten to cover animation, shaders, particles, and
+  the Library Report tool.
+- Library totals: 137 snippets, 29 blueprints, 5 templates.
+
 ## [1.1.0] - 2026-09-23
 
 Quality-of-life update. Adds favorites, suggestions, a two-tier
@@ -241,7 +309,8 @@ Initial release.
 - User library is plain JSON with no plugin-specific state, so
   other tools can read or append to it.
 
-[Unreleased]: https://github.com/MASTE2REZVE/gd-snippet-expander/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/MASTE2REZVE/gd-snippet-expander/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.2.0
 [1.1.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.1.0
 [1.0.1]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.0.1
 [1.0.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.0.0
