@@ -13,6 +13,7 @@ const BlueprintSerializerScript := preload("res://addons/gd_snippet_expander/blu
 const SaveBlueprintDialogScript := preload("res://addons/gd_snippet_expander/save_blueprint_dialog.gd")
 const BlueprintIoScript := preload("res://addons/gd_snippet_expander/blueprint_io.gd")
 const VersionCheckScript := preload("res://addons/gd_snippet_expander/version_check.gd")
+const PanelThemeScript := preload("res://addons/gd_snippet_expander/panel_theme.gd")
 
 const STATUS_COLOR_OK := Color(0.72, 0.85, 0.72)
 const STATUS_COLOR_WARN := Color(1.0, 0.85, 0.4)
@@ -21,7 +22,14 @@ const STATUS_COLOR_ERR := Color(1.0, 0.6, 0.55)
 const STAR_EMPTY := "\u2606"
 const STAR_FILLED := "\u2605"
 
+const FADE_DURATION := 0.18
+const STATUS_FADE_DURATION := 0.22
+const STAR_POP_DURATION := 0.35
+const BUTTON_CONFIRM_DURATION := 0.7
+const WARN_FADE_DURATION := 0.28
+
 var _editor_interface: EditorInterface = null
+var _editor_selection: EditorSelection = null
 var _library: GDASELibrary = null
 var _blueprint_builder: Node = null
 var _map_browser: Node = null
@@ -33,6 +41,8 @@ var _debug_overlay: Node = null
 var _blueprint_serializer: Node = null
 var _blueprint_io: Node = null
 var _version_check = null
+var _theme_ref = null
+var _syntax_highlighter: CodeHighlighter = null
 var _save_dialog: ConfirmationDialog = null
 var _export_dialog: FileDialog = null
 var _import_dialog: FileDialog = null
@@ -40,6 +50,9 @@ var _import_dialog: FileDialog = null
 var _current_match: Dictionary = {}
 var _current_results: Array = []
 var _suppress_text_changed: bool = false
+var _insert_default_text: String = "Insert"
+var _copy_default_text: String = "Copy"
+var _button_reset_token: int = 0
 
 @onready var _phrase_input: LineEdit = %PhraseInput
 @onready var _fav_button: Button = %FavButton
@@ -81,6 +94,7 @@ var _suppress_text_changed: bool = false
 # =========================================================================
 
 func _ready() -> void:
+	_apply_theme()
 	_ensure_library()
 	_ensure_helpers()
 
@@ -109,13 +123,65 @@ func _ready() -> void:
 	_rebuild_templates_list()
 	_rebuild_favorites_row()
 	_rebuild_suggestions()
+	_apply_theme_tweaks()
+	if _editor_interface != null and _inspector != null and _inspector.has_method("set_editor_interface"):
+		_inspector.set_editor_interface(_editor_interface)
 	_set_initial_status()
 
 
 func set_editor_interface(ei: EditorInterface) -> void:
 	_editor_interface = ei
+	if _inspector != null and _inspector.has_method("set_editor_interface"):
+		_inspector.set_editor_interface(ei)
+	_connect_selection_signal()
 	if _wizard != null and ei != null:
 		_maybe_show_wizard()
+
+
+func _connect_selection_signal() -> void:
+	if _editor_interface == null:
+		return
+	var sel := _editor_interface.get_selection()
+	if sel == null:
+		return
+	# Already connected to this same selection object — nothing to do.
+	if _editor_selection == sel and sel.selection_changed.is_connected(_on_editor_selection_changed):
+		return
+	# Disconnect from an older selection object if we had one.
+	if _editor_selection != null and _editor_selection.selection_changed.is_connected(_on_editor_selection_changed):
+		_editor_selection.selection_changed.disconnect(_on_editor_selection_changed)
+	_editor_selection = sel
+	_editor_selection.selection_changed.connect(_on_editor_selection_changed)
+
+
+func _on_editor_selection_changed() -> void:
+	# The signal fires before _ready() on first setup, so guard against
+	# @onready references not being ready yet.
+	if not is_node_ready():
+		return
+	_on_learn_refresh_pressed()
+
+
+# =========================================================================
+# Theme
+# =========================================================================
+
+func _apply_theme() -> void:
+	if _theme_ref == null:
+		_theme_ref = PanelThemeScript.new()
+	var built_theme: Theme = _theme_ref.build()
+	theme = built_theme
+
+
+func _apply_theme_tweaks() -> void:
+	_phrase_input.add_theme_font_size_override("font_size", 17)
+	_preview_code.syntax_highlighter = _ensure_syntax_highlighter()
+	_status.add_theme_font_size_override("font_size", 12)
+	_status.modulate = Color(1, 1, 1, 0)
+	_warning_label.add_theme_font_size_override("font_size", 12)
+	_learn_node_label.add_theme_font_size_override("font_size", 12)
+	_blueprint_io_status.add_theme_font_size_override("font_size", 11)
+	_blueprint_io_status.modulate = Color(1, 1, 1, 0.85)
 
 
 # =========================================================================
@@ -272,6 +338,7 @@ func _apply_match(kind: String, id: String, phrase: String, overwrite_input: boo
 	_render_related()
 	_update_insert_button_label()
 	_update_fav_button()
+	_fade_in_preview()
 
 	var display_name := id
 	if kind == GDASELibrary.KIND_BLUEPRINT:
@@ -336,6 +403,7 @@ func _on_fav_pressed() -> void:
 		return
 	_library.toggle_favorite(id)
 	_update_fav_button()
+	_pop_star()
 	_rebuild_favorites_row()
 	if _library.is_favorite(id):
 		_set_status("Added to favorites: " + id, STATUS_COLOR_OK)
@@ -356,9 +424,22 @@ func _update_fav_button() -> void:
 	if _library.is_favorite(id):
 		_fav_button.text = STAR_FILLED
 		_fav_button.tooltip_text = "Remove from favorites"
+		_fav_button.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+		_fav_button.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.55))
 	else:
 		_fav_button.text = STAR_EMPTY
 		_fav_button.tooltip_text = "Add to favorites"
+		_fav_button.add_theme_color_override("font_color", Color(0.7, 0.7, 0.72))
+		_fav_button.add_theme_color_override("font_hover_color", Color(1.0, 0.85, 0.4))
+
+
+func _pop_star() -> void:
+	if _fav_button == null:
+		return
+	_fav_button.pivot_offset = _fav_button.size * 0.5
+	var tween := create_tween()
+	tween.tween_property(_fav_button, "scale", Vector2(1.35, 1.35), STAR_POP_DURATION * 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(_fav_button, "scale", Vector2.ONE, STAR_POP_DURATION * 0.7).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
 func _rebuild_favorites_row() -> void:
@@ -379,6 +460,9 @@ func _rebuild_favorites_row() -> void:
 		chip.pressed.connect(_on_favorite_chip_pressed.bind(str(fav_id)))
 		_favorites_chips.add_child(chip)
 	_favorites_row.visible = true
+	_favorites_row.modulate = Color(1, 1, 1, 0)
+	var fade := create_tween()
+	fade.tween_property(_favorites_row, "modulate:a", 1.0, FADE_DURATION)
 
 
 func _entry_label(id: String) -> String:
@@ -424,6 +508,9 @@ func _rebuild_suggestions() -> void:
 		chip.pressed.connect(_on_suggestion_chip_pressed.bind(str(sid)))
 		_suggestion_chips.add_child(chip)
 	_suggestion_row.visible = true
+	_suggestion_row.modulate = Color(1, 1, 1, 0)
+	var fade := create_tween()
+	fade.tween_property(_suggestion_row, "modulate:a", 1.0, FADE_DURATION)
 
 
 func _on_suggestion_chip_pressed(id: String) -> void:
@@ -658,6 +745,15 @@ func _check_warnings() -> void:
 	_warning_label.text = "\u26a0  Missing input actions: %s  \u2014  add them in Project Settings \u2192 Input Map." % ", ".join(names)
 	_warning_label.modulate = STATUS_COLOR_WARN
 	_warning_label.visible = true
+	_fade_in_warning()
+
+
+func _fade_in_warning() -> void:
+	if _warning_label == null:
+		return
+	_warning_label.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(_warning_label, "modulate:a", 1.0, WARN_FADE_DURATION)
 
 
 # =========================================================================
@@ -693,6 +789,9 @@ func _render_related() -> void:
 		btn.pressed.connect(_on_related_pressed.bind(str(r)))
 		_related_chips.add_child(btn)
 	_chips_row.visible = true
+	_chips_row.modulate = Color(1, 1, 1, 0)
+	var fade := create_tween()
+	fade.tween_property(_chips_row, "modulate:a", 1.0, FADE_DURATION)
 
 
 func _clear_related_chips() -> void:
@@ -736,6 +835,7 @@ func _on_mode_full_details_pressed() -> void:
 func _set_mode(mode: String) -> void:
 	_library.set_mode(mode)
 	_render_preview()
+	_fade_in_preview()
 	_set_status("Mode: " + _mode_label(mode), STATUS_COLOR_OK)
 
 
@@ -762,12 +862,14 @@ func _mode_label(mode: String) -> String:
 
 func _update_insert_button_label() -> void:
 	if _current_match.is_empty():
-		_insert_button.text = "Insert"
+		_insert_default_text = "Insert"
+		_insert_button.text = _insert_default_text
 		return
 	if str(_current_match.get("kind", "")) == GDASELibrary.KIND_BLUEPRINT:
-		_insert_button.text = "Build"
+		_insert_default_text = "Build"
 	else:
-		_insert_button.text = "Insert"
+		_insert_default_text = "Insert"
+	_insert_button.text = _insert_default_text
 
 
 func _on_insert_pressed() -> void:
@@ -797,6 +899,7 @@ func _do_snippet_insert() -> void:
 	code_edit.grab_focus()
 	_library.add_recent(id)
 	_rebuild_suggestions()
+	_flash_button_success(_insert_button, "Inserted")
 	_set_status("Inserted %d characters." % code.length(), STATUS_COLOR_OK)
 
 
@@ -812,9 +915,11 @@ func _do_blueprint_build() -> void:
 	if result.get("ok", false):
 		_library.add_recent(id)
 		_rebuild_suggestions()
+		_flash_button_success(_insert_button, "Built")
 		_set_status(str(result.get("message", "Blueprint built.")), STATUS_COLOR_OK)
 	else:
 		_set_status("Build failed: " + str(result.get("message", "unknown error")), STATUS_COLOR_ERR)
+		_emphasize_error()
 
 
 func _on_copy_pressed() -> void:
@@ -823,6 +928,7 @@ func _on_copy_pressed() -> void:
 		return
 	if str(_current_match.get("kind", "")) == GDASELibrary.KIND_BLUEPRINT:
 		DisplayServer.clipboard_set(_preview_code.text)
+		_flash_button_success(_copy_button, "Copied")
 		_set_status("Copied blueprint tree to clipboard.", STATUS_COLOR_OK)
 		return
 	var id := str(_current_match.get("id", ""))
@@ -832,6 +938,7 @@ func _on_copy_pressed() -> void:
 		_set_status("Nothing to copy.", STATUS_COLOR_WARN)
 		return
 	DisplayServer.clipboard_set(code)
+	_flash_button_success(_copy_button, "Copied")
 	_set_status("Copied to clipboard.", STATUS_COLOR_OK)
 
 
@@ -871,6 +978,7 @@ func _on_learn_refresh_pressed() -> void:
 	var node: Node = selected[0]
 	_learn_node_label.text = "Selected: " + str(node.name) + " (" + node.get_class() + ")"
 	_learn_text.text = _inspector.format(node)
+	_fade_in_node(_learn_text)
 
 
 # =========================================================================
@@ -936,9 +1044,11 @@ func _on_export_path_selected(path: String) -> void:
 	var msg := str(result.get("message", ""))
 	if result.get("ok", false):
 		_blueprint_io_status.text = msg
+		_blueprint_io_status.modulate = STATUS_COLOR_OK
 		_set_status(msg, STATUS_COLOR_OK)
 	else:
 		_blueprint_io_status.text = msg
+		_blueprint_io_status.modulate = STATUS_COLOR_ERR
 		_set_status(msg, STATUS_COLOR_ERR)
 
 
@@ -965,9 +1075,11 @@ func _on_import_path_selected(path: String) -> void:
 		_library.reload()
 		_rebuild_browse_tree()
 		_blueprint_io_status.text = msg
+		_blueprint_io_status.modulate = STATUS_COLOR_OK
 		_set_status(msg, STATUS_COLOR_OK)
 	else:
 		_blueprint_io_status.text = msg
+		_blueprint_io_status.modulate = STATUS_COLOR_ERR
 		_set_status(msg, STATUS_COLOR_ERR)
 
 
@@ -980,6 +1092,7 @@ func _on_checker_pressed() -> void:
 		return
 	var issues: Array = _scene_checker.scan(_editor_interface)
 	_checker_output.text = _scene_checker.format(issues)
+	_fade_in_node(_checker_output)
 	_set_status("Scanned scene. %d issue(s) found." % issues.size(), STATUS_COLOR_OK)
 
 
@@ -1129,4 +1242,132 @@ func _set_status(msg: String, color: Color = Color.WHITE) -> void:
 	if _status == null:
 		return
 	_status.text = msg
-	_status.modulate = color
+	_status.modulate = Color(color.r, color.g, color.b, 1.0)
+	_pulse_status()
+
+
+func _pulse_status() -> void:
+	if _status == null:
+		return
+	var target := _status.modulate
+	target.a = 1.0
+	_status.modulate = Color(target.r, target.g, target.b, 0.35)
+	var tween := create_tween()
+	tween.tween_property(_status, "modulate:a", 1.0, STATUS_FADE_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
+# =========================================================================
+# Animations
+# =========================================================================
+
+func _fade_in_preview() -> void:
+	if _preview_tabs == null:
+		return
+	var target: float = 1.0
+	_preview_tabs.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(_preview_tabs, "modulate:a", target, FADE_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
+func _fade_in_node(node: Control) -> void:
+	if node == null:
+		return
+	node.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(node, "modulate:a", 1.0, FADE_DURATION)
+
+
+func _flash_button_success(button: Button, label: String) -> void:
+	if button == null:
+		return
+	_button_reset_token += 1
+	var my_token := _button_reset_token
+	var default_text := _insert_default_text if button == _insert_button else _copy_default_text
+	button.text = "\u2713 " + label
+	button.pivot_offset = button.size * 0.5
+	button.scale = Vector2(1.05, 1.05)
+	var tween := create_tween()
+	tween.tween_property(button, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await get_tree().create_timer(BUTTON_CONFIRM_DURATION).timeout
+	if my_token == _button_reset_token and is_instance_valid(button):
+		button.text = default_text
+
+
+func _emphasize_error() -> void:
+	if _status == null:
+		return
+	var base := _status.modulate
+	var flash := Color(1.0, 0.35, 0.35, 1.0)
+	var tween := create_tween()
+	tween.tween_property(_status, "modulate", flash, 0.08)
+	tween.tween_property(_status, "modulate", base, 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
+# =========================================================================
+# Syntax highlighting
+# =========================================================================
+
+func _ensure_syntax_highlighter() -> CodeHighlighter:
+	if _syntax_highlighter != null:
+		return _syntax_highlighter
+	var hl := CodeHighlighter.new()
+	var settings: EditorSettings = null
+	if _editor_interface != null:
+		settings = _editor_interface.get_editor_settings()
+
+	var keyword_color := _read_editor_color(settings, "text_editor/theme/highlighting/keyword_color", Color(1.0, 0.44, 0.52))
+	var function_color := _read_editor_color(settings, "text_editor/theme/highlighting/function_color", Color(0.34, 0.67, 1.0))
+	var number_color := _read_editor_color(settings, "text_editor/theme/highlighting/number_color", Color(0.6, 1.0, 0.6))
+	var string_color := _read_editor_color(settings, "text_editor/theme/highlighting/string_color", Color(1.0, 0.85, 0.4))
+	var comment_color := _read_editor_color(settings, "text_editor/theme/highlighting/comment_color", Color(0.5, 0.6, 0.5))
+	var symbol_color := _read_editor_color(settings, "text_editor/theme/highlighting/symbol_color", Color(0.7, 0.7, 0.7))
+	var base_type_color := _read_editor_color(settings, "text_editor/theme/highlighting/base_type_color", Color(0.4, 0.8, 0.8))
+	var member_var_color := _read_editor_color(settings, "text_editor/theme/highlighting/member_variable_color", Color(0.8, 0.8, 0.6))
+
+	hl.number_color = number_color
+	hl.symbol_color = symbol_color
+	hl.function_color = function_color
+	hl.member_variable_color = member_var_color
+
+	var keywords := [
+		"if", "elif", "else", "for", "while", "match", "when", "break", "continue",
+		"pass", "return", "await", "yield", "func", "class", "class_name", "extends",
+		"var", "const", "enum", "signal", "static", "super", "self", "as", "is",
+		"in", "and", "or", "not", "true", "false", "null", "void", "breakpoint",
+		"preload", "load", "tool", "onready", "export", "get", "set"
+	]
+	for kw in keywords:
+		hl.add_keyword_color(kw, keyword_color)
+
+	var types := [
+		"int", "float", "bool", "String", "StringName", "NodePath",
+		"Vector2", "Vector2i", "Vector3", "Vector3i", "Vector4",
+		"Rect2", "Rect2i", "Transform2D", "Transform3D", "Basis",
+		"Color", "Array", "Dictionary", "PackedByteArray",
+		"PackedInt32Array", "PackedFloat32Array", "PackedStringArray",
+		"PackedVector2Array", "PackedVector3Array", "PackedColorArray",
+		"Callable", "RID", "Object", "Node", "Node2D", "Node3D",
+		"Control", "CanvasItem", "Resource", "SceneTree", "Variant",
+		"Quaternion", "Plane", "AABB"
+	]
+	for tp in types:
+		hl.add_keyword_color(tp, base_type_color)
+
+	hl.add_color_region("\"\"\"", "\"\"\"", string_color, false)
+	hl.add_color_region("\"", "\"", string_color, false)
+	hl.add_color_region("'", "'", string_color, false)
+	hl.add_color_region("#", "", comment_color, true)
+
+	_syntax_highlighter = hl
+	return _syntax_highlighter
+
+
+func _read_editor_color(settings: EditorSettings, key: String, fallback: Color) -> Color:
+	if settings == null:
+		return fallback
+	if not settings.has_setting(key):
+		return fallback
+	var value = settings.get_setting(key)
+	if value is Color:
+		return value
+	return fallback
