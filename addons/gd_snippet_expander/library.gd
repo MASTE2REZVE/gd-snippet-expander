@@ -781,17 +781,26 @@ func _merge_dict(data: Dictionary) -> void:
 	for id in templates.keys():
 		_templates[id] = templates[id]
 
-
 func _merge_library_folder() -> void:
-	var dir := DirAccess.open(LIBRARY_DIR)
+	_scan_library_dir(LIBRARY_DIR)
+
+
+func _scan_library_dir(path: String) -> void:
+	var dir := DirAccess.open(path)
 	if dir == null:
 		return
 	var files := dir.get_files()
 	files.sort()
 	for f in files:
 		if f.ends_with(".gd"):
-			_merge_library_script(LIBRARY_DIR + f)
-
+			_merge_library_script(path + f)
+	var subdirs := dir.get_directories()
+	subdirs.sort()
+	for d in subdirs:
+		var name := str(d)
+		if name.begins_with("."):
+			continue
+		_scan_library_dir(path + name + "/")
 
 func _merge_library_script(path: String) -> void:
 	var script = load(path)

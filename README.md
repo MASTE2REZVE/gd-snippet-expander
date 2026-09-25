@@ -19,13 +19,15 @@ than remembering every API call and every required child node.
 - Offline. Works on a plane.
 - Instant. No round-trips.
 - Free. MIT licensed.
+- Cross-platform. Desktop, mobile, and web. Every snippet
+  declares which platforms it supports.
 - Teaches. Every snippet has WHAT, WHERE, BEFORE, AFTER, WHY
   THIS IS OPTIMIZED, and COMMON MISTAKES sections. Every tunable
   parameter has a default, a range, typical values, and what
   happens when you increase or decrease it.
 - Extensible. Add your own snippets and blueprints in a plain
   GDScript file.
-- Android-friendly. Built and tested on a tablet.
+- Android-tested. Built and tested on a tablet.
 
 ## Requirements
 
@@ -54,8 +56,7 @@ The main view. Type a phrase, see the code or blueprint, insert
 or build it.
 
 Favorites appear as chips under the mode buttons. Click the star
-next to Copy to add or remove the current match. Favorites are
-saved between sessions.
+next to Copy to add or remove the current match.
 
 Suggestions appear as a "Try next:" row. After you insert or
 build something, the plugin suggests snippets from categories you
@@ -68,17 +69,13 @@ Detection). Click any item to load it in the Preview tab.
 
 ### Learn
 Select a node in your Scene tree, click Refresh, and read what
-it does, what children it needs, and common mistakes. Good for
-figuring out unfamiliar nodes.
+it does, what children it needs, and common mistakes.
 
 ### Tools
 - **Starter templates** — one-click scene setups.
 - **Custom Blueprints: Import / Export** — share your own saved
-  blueprints with anyone. JSON format, never overwrites existing
-  entries.
-- **Scene checker** — scans your scene for common mistakes
-  (CharacterBody with no CollisionShape, pause menu that won't
-  unpause, etc.).
+  blueprints with anyone. JSON format.
+- **Scene checker** — scans your scene for common mistakes.
 - **Debug overlay** — installs an FPS / draw call / memory overlay
   into the current scene. Press F3 in-game to toggle.
 
@@ -91,6 +88,7 @@ any node tree in your scene into a reusable blueprint.
 library: total counts, progress toward targets, every entry
 grouped by category and subcategory. Copy to clipboard or save
 to a text file.
+
 
 ## Two kinds of things: snippets and blueprints
 
@@ -158,16 +156,36 @@ Your choice is remembered between sessions.
 | `crafting recipe` | Recipe resource with ingredients |
 | `shop buy` | Purchase with refund on failure |
 | `loot table` | Drop table resource |
+| `autotile` | TileMap autotile workflow |
+| `point light 2d` | 2D point light with CanvasModulate |
+| `parallax background` | Multi-layer scrolling background |
+| `animated sprite state` | Sprite animation from velocity |
+| `one way platform` | Jump-through platform |
+| `moving platform` | AnimatableBody2D platform |
+| `spread shot` | Fan pattern projectiles |
+| `hitstop` | Freeze frames on impact |
+| `squash stretch` | Jump and land squash |
+| `virtual joystick` | On-screen touch joystick |
+| `platform detect` | Desktop / mobile / web detection |
+| `touch drag look` | Touch camera for 3D |
+| `ios detect` | iOS platform detection |
+| `door 2d` | Interactable door with key support |
+| `spring` | Bounce pad |
+| `flying enemy` | Hover and dive enemy |
+| `debug overlay 2d` | In-game 2D debug HUD |
 | `3d character` | *Blueprint* — full 3D player tree |
 | `animated player 2d` | *Blueprint* — 2D player with AnimatedSprite2D |
 | `boss health bar` | *Blueprint* — full boss bar with damage lag |
 | `inventory ui` | *Blueprint* — full inventory screen |
 | `shop ui` | *Blueprint* — buy/sell interface |
-| `ground plane` | *Blueprint* — walkable 3D ground |
-| `patrol enemy` | *Blueprint* — 2D patrolling enemy |
+| `parallax rig` | *Blueprint* — 3-layer parallax background |
+| `door blueprint` | *Blueprint* — interactable door |
+| `flying enemy blueprint` | *Blueprint* — flying enemy preset |
+| `virtual joystick ui` | *Blueprint* — mobile joystick rig |
 
-The bundled library has approximately 179 snippets, 37 blueprints,
+The bundled library has approximately 272 snippets, 53 blueprints,
 and 5 starter templates.
+
 
 ## Matching behavior
 
@@ -190,12 +208,49 @@ version older than 4.4, it shows an error. If you're on a
 version newer than 4.7.2, it shows a warning (so you know to
 report bugs if something breaks). Nothing is blocked either way.
 
+## Cross-platform support
+
+Every snippet and blueprint carries a `platforms` field listing
+which environments it supports:
+
+- **desktop** — Windows, macOS, Linux
+- **mobile** — Android, iOS
+- **web** — browser
+
+Most gameplay code works everywhere. A few things need platform
+counterparts:
+
+| Feature | Desktop | Mobile |
+|---|---|---|
+| Look control | `mouse_look_3d` | `touch_drag_look` |
+| Camera zoom | `camera_zoom` (wheel) | `pinch_zoom` |
+| Aim | `camera_look_at_mouse` | `tap_to_aim` |
+| Movement | keyboard / gamepad | `virtual_joystick` |
+| Actions | keybinds | `touch_button` |
+| Menu close | Escape key | on-screen close button |
+
+The `input_abstraction` snippet merges keyboard, gamepad, and
+touch input into one API. Use it instead of `Input.get_vector`
+directly to get cross-platform behavior for free.
+
+Safe area handling is built in via `safe_area_ui` (generic) and
+`ios_safe_area_helper` (iOS Dynamic Island).
+
+Web builds need `web_audio_unlock` — browsers block audio until
+the user clicks.
+
 ## Adding your own snippets and blueprints
 
 The plugin reads from:
 
-- `addons/gd_snippet_expander/library/*.gd` — bundled library,
-  one file per category.
+- `addons/gd_snippet_expander/library/snippets/*.gd` — bundled
+  snippet files.
+- `addons/gd_snippet_expander/library/blueprints/*.gd` — bundled
+  blueprint files.
+- `addons/gd_snippet_expander/library/templates/*.gd` — starter
+  templates.
+- `addons/gd_snippet_expander/library/zz_overrides/*.gd` —
+  subcategory overrides (loaded last).
 - `user://gd_snippet_expander/user_library.json` — your own
   additions, never overwritten by updates.
 
@@ -203,25 +258,26 @@ The plugin reads from:
 
 ### User library format
 
-    {
-      "version": 2,
-      "snippets": {
-        "my_custom_thing": {
-          "phrases": ["do the thing", "thing doer"],
-          "code": "func do_thing() -> void:\n\tprint(\"hello\")\n",
-          "params": [],
-          "category": "utility",
-          "details": {
-            "what": "Prints hello.",
-            "where": "Any script.",
-            "before": "None.",
-            "after": "None.",
+	{
+	  "version": 2,
+	  "snippets": {
+		"my_custom_thing": {
+		  "phrases": ["do the thing", "thing doer"],
+		  "code": "func do_thing() -> void:\n\tprint(\"hello\")\n",
+		  "params": [],
+		  "category": "utility",
+		  "platforms": ["desktop", "mobile", "web"],
+		  "details": {
+			"what": "Prints hello.",
+			"where": "Any script.",
+			"before": "None.",
+			"after": "None.",
 			"why_optimized": "It's one line.",
 			"mistakes": "None."
-          }
-        }
-      }
-    }
+		  }
+		}
+	  }
+	}
 
 Only `phrases` and `code` are required. Every other field is
 optional — missing fields just show fewer details.
@@ -250,7 +306,8 @@ global signals, no cross-plugin coupling.
 ## Contributing
 
 Issues and pull requests welcome. To add a snippet to the bundled
-library, edit the matching file in `library/` and open a PR.
+library, edit the matching file in `library/snippets/` and open a
+PR.
 
 ## License
 

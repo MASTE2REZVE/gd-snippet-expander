@@ -10,6 +10,120 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [1.4.0] - 2026-09-25
+
+2D Complete. Adds every foundational 2D system a game needs —
+tilemaps, lighting, parallax, sprite animation, platformer and
+top-down extensions, projectile patterns, hit feedback, squash-and-
+stretch, transitions, touch controls, cross-platform input, level
+objects, environment zones, enemy types, and 2D debug tools.
+
+Also introduces cross-platform as a first-class concern: every
+snippet now carries a `platforms` field listing desktop, mobile,
+and web coverage. New `cross_platform`, `touch_camera`, and
+`platform_apple` snippets provide unified input, touch camera
+equivalents for mouse-only snippets, and Apple-specific helpers.
+
+### Added
+
+#### Tilemaps (6 snippets)
+- `tilemap_autotile`, `tilemap_collision`, `tilemap_layer_setup`,
+  `tilemap_paint_programmatic`, `tilemap_terrain_connect`,
+  `tilemap_query`.
+
+#### 2D Lighting (6 snippets)
+- `point_light_2d`, `canvas_modulate`, `flickering_light`,
+  `light_occluder_2d`, `day_night_2d`.
+- Comment-only workflow snippets for common setups.
+
+#### Parallax (5 snippets)
+- `parallax_background`, `parallax_infinite`, `parallax_manual`,
+  `parallax_vertical`, `parallax_fade`.
+
+#### Sprite Animation (5 snippets)
+- `sprite_sheet_setup`, `animated_sprite_state`,
+  `sprite_flip_direction`, `animated_sprite_state_8dir`,
+  `sprite_offset_center`.
+
+#### Platformer Extras (6 snippets)
+- `one_way_platform`, `platform_drop_through`, `moving_platform`,
+  `moving_platform_path`, `ladder`, `wall_slide_2d`.
+
+#### Top-Down Extras (5 snippets)
+- `topdown_8dir`, `grid_movement_2d`, `topdown_look_direction`,
+  `topdown_dash_8dir`, `topdown_interaction_prompt`.
+
+#### Projectile Patterns (6 snippets)
+- `spread_shot`, `homing_projectile`, `boomerang_projectile`,
+  `spiral_shot`, `pierce_projectile`, `burst_shot`.
+
+#### Hit Feedback (5 snippets)
+- `hitstop`, `hitstop_local`, `screen_flash`, `impact_frames`,
+  `damage_type_feedback`.
+
+#### Squash & Stretch (5 snippets)
+- `squash_stretch`, `wobble`, `bounce_in`, `idle_bob`, `breathing`.
+
+#### Transitions (5 snippets)
+- `transition_wipe`, `transition_iris`, `transition_fade`,
+  `transition_slide`, `transition_shake_combo`.
+
+#### Touch Controls (5 snippets)
+- `virtual_joystick`, `touch_button`, `touch_swipe`, `touch_tap`,
+  `multi_touch_tracker`.
+
+#### Cross-Platform (6 snippets)
+- `platform_detect`, `input_abstraction`, `safe_area_ui`,
+  `fullscreen_toggle`, `web_audio_unlock`, `responsive_ui_scale`.
+
+#### Touch Camera (5 snippets)
+- `touch_drag_look`, `pinch_zoom`, `tap_to_aim`,
+  `touch_orbit_camera`, `touch_drag_pan`.
+- Mobile equivalents for the mouse-only camera snippets.
+
+#### Apple Platforms (4 snippets)
+- `apple_detect`, `ios_safe_area_helper`,
+  `macos_native_fullscreen`, `apple_export_tips`.
+- iOS Dynamic Island handling, macOS native fullscreen, and an
+  export checklist.
+
+#### Level Objects (6 snippets)
+- `door_2d`, `key_pickup`, `switch_2d`, `pressure_plate`,
+  `checkpoint_2d`, `checkpoint_manager`.
+
+#### Environment (6 snippets)
+- `spring_2d`, `wind_zone_2d`, `water_zone_2d`, `ice_surface_2d`,
+  `conveyor_2d`, `mud_zone_2d`.
+
+#### Enemy Types (6 snippets)
+- `flying_enemy_2d`, `turret_enemy_2d`, `jumper_enemy_2d`,
+  `exploder_enemy_2d`, `splitter_enemy_2d`, `shielded_enemy_2d`.
+
+#### 2D Debug (5 snippets)
+- `debug_overlay_2d`, `debug_draw_collision`, `debug_grid_overlay`,
+  `debug_spawn_gizmos`, `debug_gate`.
+
+#### 2D Blueprints (16)
+- `parallax_rig_2d`, `one_way_platform`, `moving_platform`,
+  `ladder`, `spring_pad`, `ice_surface` — foundations.
+- `door_2d_blueprint`, `key_pickup_2d`, `switch_2d_blueprint`,
+  `pressure_plate_2d`, `checkpoint_2d_blueprint` — level objects.
+- `virtual_joystick_ui`, `touch_buttons_ui` — mobile UI.
+- `flying_enemy_2d_blueprint`, `turret_enemy_2d_blueprint`,
+  `jumper_enemy_2d_blueprint` — enemy presets.
+
+#### Cross-platform infrastructure
+- `platforms` field on every new snippet.
+- Library loader scans `library/snippets/`,
+  `library/blueprints/`, `library/templates/`, and
+  `library/zz_overrides/` recursively.
+
+### Changed
+- Library folder reorganized into subfolders: `snippets/`,
+  `blueprints/`, `templates/`, `zz_overrides/`.
+- Library totals: approximately 272 snippets, 53 blueprints,
+  5 templates.
+
 ## [1.3.0] - 2026-09-25
 
 RPG systems. Adds dialogue, quests, inventory, equipment, crafting,
@@ -406,7 +520,8 @@ Initial release.
 - User library is plain JSON with no plugin-specific state, so
   other tools can read or append to it.
 
-[Unreleased]: https://github.com/MASTE2REZVE/gd-snippet-expander/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/MASTE2REZVE/gd-snippet-expander/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.4.0
 [1.3.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.3.0
 [1.2.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.2.0
 [1.1.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.1.0
