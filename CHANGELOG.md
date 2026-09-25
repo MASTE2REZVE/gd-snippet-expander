@@ -10,6 +10,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [1.5.0] - 2026-09-25
+
+3D Complete. Adds every foundational 3D system a game needs —
+world environments, lighting, GridMap, materials, character and
+camera extras, projectiles, hit feedback, navigation, interaction,
+environment zones, enemy types, animation, particles, debug
+tools, and cross-platform 3D. Every snippet carries the platforms
+field.
+
+### Added
+
+#### World & Environment (6 snippets)
+- `world_environment_3d`, `fog_3d`, `directional_light_3d`,
+  `omni_light_3d`, `spot_light_3d`, `day_night_3d`.
+
+#### 3D Lighting (6 snippets)
+- `volumetric_fog_3d`, `reflection_probe_3d`, `lightmap_gi_3d`,
+  `emissive_material_3d`, `light_group_3d`, `shadow_tuning_3d`.
+
+#### GridMap (5 snippets)
+- `gridmap_setup`, `mesh_library_setup`, `gridmap_room_builder`,
+  `gridmap_query`, `gridmap_navigation`.
+
+#### Mesh & Materials (6 snippets)
+- `mesh_material_3d`, `mesh_swap_3d`, `mesh_fade_3d`,
+  `mesh_outline_3d`, `multimesh_instancing_3d`,
+  `mesh_surface_override_3d`.
+
+#### Character Extras 3D (5 snippets)
+- `stairs_slopes_3d`, `character_3d_crouch`, `character_3d_slide`,
+  `character_3d_wall_run`, `character_3d_slope_slide`.
+
+#### Camera Extras 3D (5 snippets)
+- `spring_arm_camera_3d`, `shoulder_swap_3d`, `camera_shake_3d`,
+  `camera_look_at_target_3d`, `camera_zoom_3d`.
+
+#### Projectiles 3D (6 snippets)
+- `projectile_3d`, `hitscan_3d`, `rocket_3d`, `grenade_3d`,
+  `laser_beam_3d`, `throwing_arc_3d`.
+
+#### Hit Feedback 3D (6 snippets)
+- `hitstop_3d`, `hit_flash_3d`, `damage_number_3d`,
+  `impact_particles_3d`, `knockback_3d`, `hit_reaction_3d`.
+
+#### Navigation 3D (6 snippets)
+- `navigation_region_3d_setup`, `navigation_obstacle_3d`,
+  `navigation_agent_avoidance_3d`, `patrol_waypoints_3d`,
+  `navigation_path_refresh_3d`, `navigation_link_3d`.
+
+#### Interaction 3D (5 snippets)
+- `raycast_interact_3d`, `interactable_3d`, `interaction_prompt_3d`,
+  `door_3d`, `switch_3d`.
+
+#### Environment 3D (6 snippets)
+- `gravity_zone_3d`, `water_zone_3d`, `ladder_3d`, `wind_zone_3d`,
+  `moving_platform_3d`.
+
+#### Enemy Types 3D (6 snippets)
+- `flying_enemy_3d`, `turret_enemy_3d`, `jumper_enemy_3d`,
+  `exploder_enemy_3d`, `splitter_enemy_3d`, `shielded_enemy_3d`.
+
+#### Animation 3D (6 snippets)
+- `character_animation_3d`, `root_motion_3d`, `animation_ik_hint_3d`,
+  `animation_layers_3d`, `animation_event_3d`,
+  `animation_transition_blend_3d`.
+
+#### Particles 3D (6 snippets)
+- `particle_explosion_3d`, `particle_trail_3d`, `particle_dust_3d`,
+  `particle_smoke_3d`, `particle_fire_3d`, `particle_debris_3d`.
+
+#### Debug 3D (5 snippets)
+- `debug_overlay_3d`, `debug_draw_collision_3d`, `debug_ray_3d`,
+  `debug_camera_3d`, `debug_grid_3d`.
+
+#### Cross-platform 3D (6 snippets)
+- `fov_platform_3d`, `touch_look_3d`, `mobile_quality_scaler_3d`,
+  `mobile_ui_scale_3d`, `mobile_orientation_3d`, `mobile_safe_ui_3d`.
+
+#### 3D Blueprints (14)
+- `environment_rig_3d`, `spring_arm_camera_rig`, `item_pickup_3d`,
+  `gravity_zone_3d_blueprint` — foundations.
+- `door_3d_blueprint`, `switch_3d_blueprint`, `enemy_spawner_3d`,
+  `checkpoint_3d` — level objects.
+- `flying_enemy_3d_blueprint`, `turret_enemy_3d_blueprint`,
+  `boss_3d` — enemies.
+- `day_night_rig_3d`, `weather_rig_3d`, `water_volume_3d` — world.
+
+### Changed
+- Library totals: 362 snippets, 67 blueprints, 5 templates.
+
 ## [1.4.0] - 2026-09-25
 
 2D Complete. Adds every foundational 2D system a game needs —
@@ -520,7 +610,8 @@ Initial release.
 - User library is plain JSON with no plugin-specific state, so
   other tools can read or append to it.
 
-[Unreleased]: https://github.com/MASTE2REZVE/gd-snippet-expander/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/MASTE2REZVE/gd-snippet-expander/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.5.0
 [1.4.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.4.0
 [1.3.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.3.0
 [1.2.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.2.0

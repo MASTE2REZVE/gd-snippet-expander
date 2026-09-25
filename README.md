@@ -89,7 +89,6 @@ library: total counts, progress toward targets, every entry
 grouped by category and subcategory. Copy to clipboard or save
 to a text file.
 
-
 ## Two kinds of things: snippets and blueprints
 
 **Snippets** are blocks of GDScript. Insert one and the code goes
@@ -173,6 +172,15 @@ Your choice is remembered between sessions.
 | `spring` | Bounce pad |
 | `flying enemy` | Hover and dive enemy |
 | `debug overlay 2d` | In-game 2D debug HUD |
+| `spring arm camera` | Third-person collision camera |
+| `gridmap setup` | 3D grid-based level building |
+| `volumetric fog` | God rays and atmospheric haze |
+| `throwing arc` | Projectile trajectory preview |
+| `navigation avoidance` | Agent avoidance for 3D AI |
+| `boss 3d` | 3D boss with phase system |
+| `day night rig 3d` | Sun cycle with moon |
+| `weather rig 3d` | Rain and snow system |
+| `water volume 3d` | 3D swim area with buoyancy |
 | `3d character` | *Blueprint* — full 3D player tree |
 | `animated player 2d` | *Blueprint* — 2D player with AnimatedSprite2D |
 | `boss health bar` | *Blueprint* — full boss bar with damage lag |
@@ -182,9 +190,45 @@ Your choice is remembered between sessions.
 | `door blueprint` | *Blueprint* — interactable door |
 | `flying enemy blueprint` | *Blueprint* — flying enemy preset |
 | `virtual joystick ui` | *Blueprint* — mobile joystick rig |
+| `environment rig 3d` | *Blueprint* — world environment setup |
+| `spring arm camera rig` | *Blueprint* — third-person camera tree |
+| `boss 3d` | *Blueprint* — full 3D boss with phases |
 
-The bundled library has approximately 272 snippets, 53 blueprints,
+The bundled library has approximately 362 snippets, 67 blueprints,
 and 5 starter templates.
+
+## 3D support
+
+The library is complete for both 2D and 3D games. Everything you
+need to build a 3D game from scratch:
+
+- **World** — environment rig, sky, fog, volumetric fog, GridMap
+  workflow, day/night cycle, weather rig, water volumes.
+- **Lighting** — directional sun, omni lights, spotlights, light
+  baking, reflection probes, emissive materials.
+- **Characters** — stairs, slopes, crouch, slide, wall run, slope
+  sliding, spring arm cameras, shoulder swap, aim zoom.
+- **Combat** — 3D projectiles, hitscan, rockets, grenades, laser
+  beams, throwing arcs, hitstop, impact particles, hit flash,
+  damage numbers, knockback.
+- **Enemies** — flying, turret, jumper, exploder, splitter,
+  shielded, bosses with phase systems.
+- **Navigation** — navmesh baking, dynamic obstacles, agent
+  avoidance, patrol waypoints, off-mesh links.
+- **Interaction** — raycast interact, doors, switches, prompts.
+- **Environment zones** — gravity, water, ladders, wind, moving
+  platforms.
+- **Animation** — blend spaces, root motion, IK hints, animation
+  layers, animation events.
+- **Particles** — explosions, trails, dust, smoke, fire, debris.
+- **Debug** — overlays, collision visualizer, ray debug, free
+  camera, grid.
+- **Cross-platform** — mobile FOV scaling, touch look, adaptive
+  quality, safe area handling.
+
+All 3D snippets declare their platforms field. Everything works
+on desktop and mobile; some visual effects (volumetric fog,
+lightmaps) are desktop-optimized.
 
 
 ## Matching behavior
