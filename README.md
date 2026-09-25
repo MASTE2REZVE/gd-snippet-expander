@@ -152,14 +152,22 @@ Your choice is remembered between sessions.
 | `animation state` | AnimationTree state machine travel |
 | `dissolve shader` | Noise-based dissolve with burning edge |
 | `particle explosion` | One-shot burst, self-deletes |
+| `dialogue data` | Resource storing conversation lines |
+| `quest log` | Autoload quest tracker with signals |
+| `inventory grid` | Slot-based inventory with stacking |
+| `crafting recipe` | Recipe resource with ingredients |
+| `shop buy` | Purchase with refund on failure |
+| `loot table` | Drop table resource |
 | `3d character` | *Blueprint* — full 3D player tree |
 | `animated player 2d` | *Blueprint* — 2D player with AnimatedSprite2D |
 | `boss health bar` | *Blueprint* — full boss bar with damage lag |
+| `inventory ui` | *Blueprint* — full inventory screen |
+| `shop ui` | *Blueprint* — buy/sell interface |
 | `ground plane` | *Blueprint* — walkable 3D ground |
 | `patrol enemy` | *Blueprint* — 2D patrolling enemy |
 
-The bundled library has 137 snippets, 29 blueprints, and 5
-starter templates.
+The bundled library has approximately 179 snippets, 37 blueprints,
+and 5 starter templates.
 
 ## Matching behavior
 

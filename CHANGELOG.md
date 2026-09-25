@@ -10,6 +10,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [1.3.0] - 2026-09-25
+
+RPG systems. Adds dialogue, quests, inventory, equipment, crafting,
+shop, loot, and item registry systems. Every snippet and blueprint
+in this release works in 2D and 3D.
+
+### Added
+
+#### Dialogue (6 snippets, 2 blueprints)
+- `dialogue_data` — Resource storing conversation lines, portrait,
+  and speaker name.
+- `dialogue_choice` — Resource for branching dialogue with
+  conditions.
+- `dialogue_condition_check` — evaluates `has_item:key`,
+  `has_quest:rescue`, `flag:met_king` style conditions.
+- `npc_interactable` — Area2D that opens dialogue on Interact when
+  the player is in range.
+- `dialogue_typewriter` — character-by-character text reveal with
+  skip support.
+- `npc_portrait_swap` — swaps portrait by emotion name.
+- `dialogue_ui_advanced` — CanvasLayer with portrait, speaker name,
+  body text, choice buttons.
+- `dialogue_trigger_zone` — Area2D that auto-fires dialogue when the
+  player walks in.
+
+#### Quests (6 snippets, 1 blueprint)
+- `quest_data` — Resource with objectives, required counts, rewards.
+- `quest_log` — autoload singleton with signals for added/completed/
+  advanced.
+- `quest_add`, `quest_advance`, `quest_reward` — actions for
+  granting, progressing, and rewarding quests.
+- `quest_log_ui` — press-key journal showing active and completed
+  quests.
+- `quest_log_ui_blueprint` — the container and layout for the
+  journal.
+
+#### Inventory (5 snippets, 2 blueprints)
+- `item_data` — Resource class defining an item: id, name,
+  description, icon, stack size, value, type, stat bonuses.
+- `inventory_grid` — slot-based inventory with stacking. Fills
+  existing stacks before opening new slots.
+- `inventory_sort` — sort by item type then name, or by name only.
+- `inventory_hotbar` — number-key quick-select bar.
+- `inventory_pickup_auto` — world pickup that adds to inventory.
+- `inventory_ui_grid` — full inventory screen with sort button,
+  slot grid, and gold display.
+- `equipment_panel_ui` — gear panel showing equipped items per slot.
+
+#### Equipment (5 snippets, 1 blueprint)
+- `equipment_slots` — manages equipped items per slot. Auto-returns
+  swapped items to inventory.
+- `equipment_stats` — recomputes stats from gear on change.
+- `equipment_visual_swap` — shows equipped weapon/armor on the
+  player sprite.
+- `equipment_stat_apply` — bridges stats into movement speed and
+  health max.
+- `character_stats_ui` — panel showing final stats.
+
+#### Crafting (5 snippets, 1 blueprint)
+- `crafting_recipe` — Resource with ingredients, result, time,
+  required station.
+- `crafting_can_craft` — availability check with missing ingredient
+  list.
+- `crafting_execute` — performs the craft with time delay and
+  signals.
+- `crafting_station` — Area2D interaction point.
+- `crafting_disassemble` — reverses a recipe with a salvage ratio.
+- `crafting_bench_ui` — two-panel recipe browser with ingredient
+  list.
+
+#### Shop (4 snippets, 1 blueprint)
+- `shop_buy` — purchase with refund on failure.
+- `shop_sell` — sell items for gold.
+- `shop_pricing` — reputation and bulk discount calculation.
+- `shop_stock` — per-item stock with optional restock timer.
+- `shop_ui` — tabbed buy/sell interface.
+
+#### Loot (5 snippets)
+- `loot_table` — Resource with items, chances, counts, gold.
+- `loot_roll` — rolls a table, returns dropped items.
+- `loot_drop_pickup` — spawns pickups in a scatter pattern.
+- `rarity_tier` — 5-tier rarity with weighted rolls and colors.
+- `loot_auto_collect` — magnet pickup that flies to the player.
+
+#### Item registry (4 snippets)
+- `item_registry` — autoload singleton that scans a folder for
+  ItemData resources and indexes them by item_id.
+- `item_spawn_pickup` — spawns pickups by item ID.
+- `item_use_consumable` — runs a custom effect or falls back to
+  healing.
+- `item_tooltip` — Control showing name, type, description, stats,
+  and auto-derived rarity color.
+
+### Changed
+- Library totals: approximately 179 snippets, 37 blueprints, and
+  5 templates.
+
 ## [1.2.0] - 2026-09-24
 
 Library expansion. Adds animation, shaders, particle effects, and
@@ -309,7 +406,8 @@ Initial release.
 - User library is plain JSON with no plugin-specific state, so
   other tools can read or append to it.
 
-[Unreleased]: https://github.com/MASTE2REZVE/gd-snippet-expander/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/MASTE2REZVE/gd-snippet-expander/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.3.0
 [1.2.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.2.0
 [1.1.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.1.0
 [1.0.1]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.0.1
