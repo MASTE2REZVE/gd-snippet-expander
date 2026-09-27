@@ -10,6 +10,132 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [1.6.0] - 2026-09-27
+
+Error Whisperer and the mini AI debugger core. Adds a new offline
+subsystem that reads the Godot Output panel, matches errors against
+a curated pattern library, and shows fix cards in real time.
+Also adds a query-driven Fix tab that scores 200 curated fix
+records against your script.
+
+### Added
+
+#### Errors tab - Error Whisperer
+
+- Watches Godot's Output panel every 500 ms.
+- Matches each error line against a library of 17 curated patterns
+  covering null safety, type errors, syntax, node paths, signals,
+  physics, and Godot 3 to 4 migration.
+- Cards show a plain-English explanation, common causes, a
+  suggested fix, and the raw error line.
+- Locate button jumps to the exact line in the file.
+- Copy, Insert, and Undo buttons for the fix code.
+- Cards auto-appear when errors enter Output and auto-remove when
+  errors leave Output. No manual refresh required.
+- Advice-only detection: fix records that are pure comments get a
+  "guidance, not code" note instead of Insert / Undo buttons.
+- Session dedupe: repeated identical errors don't spam the panel.
+- Manual paste fallback when the Output panel can't be located.
+
+#### Fix tab - query-driven fix matcher
+
+- New tab with a query input. Type a plain-English phrase like
+  "player cant jump" and press Enter.
+- Searches 200 curated fix records via a rule matcher.
+- Ranks results by pattern match, query token overlap, and each
+  record's declared base confidence.
+- Result cards show title, category, confidence percentage,
+  primary candidate code, description, and alternatives.
+- Insert, Copy, and Not-this buttons per card.
+- Confidence ring color scales from blue (low) through amber
+  (medium) to red (high).
+- Disambiguating questions appear when the top two candidates are
+  close. Answering re-ranks the list.
+- Only runs when a query is typed. No query means no noise.
+
+#### Mini AI debugger subsystem
+
+New `addons/gd_snippet_expander/ai_debugger/` folder with 17 files:
+
+- `gdscript_lexer.gd` - tokenizes GDScript into a token stream
+  with INDENT / DEDENT markers.
+- `gdscript_parser.gd` - builds an AST from tokens. Handles every
+  GDScript 4 declaration, statement, and expression.
+- `classdb_index.gd` - indexes every Godot class, method,
+  property, and signal from ClassDB for fast lookups.
+- `english_tokenizer.gd` - lowercases, strips punctuation,
+  filters stopwords, applies a light suffix stemmer.
+- `embedding.gd` - 200-dim vector lookup table loader. Ships in
+  stub mode until offline training runs.
+- `feature_extractor.gd` - blends AST, query, and history into a
+  200-dim feature vector for the classifier.
+- `fix_library.gd` + `fix_library_data_a-e.gd` - 200 curated fix
+  records across movement, camera, input, null safety, signals,
+  nodes, physics, animation, UI, health, and syntax.
+- `rule_matcher.gd` - scores records against source + query.
+  Reuses the fix library's pattern definitions.
+- `question_selector.gd` - picks the disambiguating question with
+  the highest information gain.
+- `learning_store.gd` - saves applied and declined fixes to
+  `user://gd_snippet_expander/fix_history.json` and biases future
+  rankings toward fixes the user has chosen before.
+- `classifier.gd` - 200-64-16-N feed-forward network. Stub mode
+  until offline training produces weights.
+- `confidence_calibrator.gd` - maps raw probabilities to honest
+  confidence values. Stub mode until trained.
+- `brain_ui.gd` - animated confidence indicator widget with
+  rolling average, pulse rate, and category-based severity.
+- `fix_panel.gd` - the Fix tab UI.
+- `error_library.gd` - pattern library for the Error Whisperer.
+- `output_watcher.gd` - polls the Output panel and emits detect /
+  remove signals.
+- `error_panel.gd` - the Errors tab UI.
+
+#### UI polish (from the pre-release polish commit)
+
+- Animated status pulse, preview fade-in, star pop, button
+  confirm animation, warning slide-in, and error emphasize flash.
+- Syntax highlighting in the preview uses the live editor colors.
+- Custom panel theme with a 28 px base font.
+- Learn tab expanded to 65+ node types with hand-written guidance
+  and a ClassDB auto-describe fallback.
+- Auto-refresh of the Learn tab when the scene tree selection
+  changes.
+
+### Changed
+
+- **Fix and Errors tabs are lazily built on first click.** Cold
+  startup drops from roughly 1.5 seconds to 70 milliseconds.
+  Both tabs appear immediately as placeholders and build their
+  contents on first visit.
+- Replaced anonymous lambdas in `panel.gd`, `fix_panel.gd`, and
+  `wizard.gd` with `.bind()`. Anonymous lambdas parse
+  inconsistently in GDScript 4 and were breaking the compiler.
+- All new `.gd` files are ASCII-only so they survive any copy /
+  paste pipeline unchanged.
+- Fix tab requires a query. Previously it produced noise
+  suggestions on every file open.
+
+### Fixed
+
+- Errors tab only built the first time it was clicked.
+- Fix and Errors tabs swapped or vanished when clicked.
+- `preserve_whitespace` error on the code preview panels.
+- `rp_child is null` crash when clearing children.
+- Output watcher missed errors once the Output panel hit its
+  line-count limit. Now hashes the whole text and tracks the set
+  of visible error IDs across polls.
+
+### Notes
+
+- The classifier and confidence calibrator ship in **stub mode**.
+  No neural network weights are trained yet. Rules-only matching
+  is what currently does the work. Real training is planned for a
+  later version.
+- Fix records: 200. Error patterns: 17. Snippet, blueprint, and
+  template library unchanged: 362 snippets, 67 blueprints, 5
+  templates.
+
 ## [1.5.0] - 2026-09-25
 
 3D Complete. Adds every foundational 3D system a game needs —
@@ -504,11 +630,11 @@ Initial release.
   into the current scene instead of inserting code.
 - 20 blueprints across 3D, 2D, and UI:
   - 3D: player, ground plane, third-person camera rig,
-    directional light, chasing enemy, coin pickup.
+	directional light, chasing enemy, coin pickup.
   - 2D: platformer player, top-down player, platformer ground,
-    camera follow, patrol enemy, coin pickup, TileMap level.
+	camera follow, patrol enemy, coin pickup, TileMap level.
   - UI: pause menu, main menu, health bar, settings menu,
-    game over screen, score HUD, dialog box.
+	game over screen, score HUD, dialog box.
 - Blueprints auto-generate a script when the entry specifies one.
 - Blueprint building is wrapped in a single undo step.
 - Newly-built blueprints are selected in the Scene tree.
@@ -533,9 +659,9 @@ Initial release.
   - **Code only** — raw code, no comments.
   - **Code + details** — code with a comment header generated
 	from the snippet's details (WHAT / WHERE / BEFORE / AFTER /
-    param notes / common mistakes).
+	param notes / common mistakes).
   - **Full details** — raw code, plus the separate Details and
-    Params tabs.
+	Params tabs.
 - Mode is saved between sessions.
 
 #### Search and matching
@@ -610,7 +736,8 @@ Initial release.
 - User library is plain JSON with no plugin-specific state, so
   other tools can read or append to it.
 
-[Unreleased]: https://github.com/MASTE2REZVE/gd-snippet-expander/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/MASTE2REZVE/gd-snippet-expander/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.6.0
 [1.5.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.5.0
 [1.4.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.4.0
 [1.3.0]: https://github.com/MASTE2REZVE/gd-snippet-expander/releases/tag/v1.3.0

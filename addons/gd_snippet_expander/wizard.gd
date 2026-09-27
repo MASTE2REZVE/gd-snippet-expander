@@ -49,12 +49,21 @@ func build_dialog(library) -> AcceptDialog:
 	vbox.add_child(spacer)
 
 	var skip := Button.new()
-	skip.text = "Skip — I'll figure it out"
-	skip.pressed.connect(func(): dialog.hide())
+	skip.text = "Skip - I'll figure it out"
+	skip.pressed.connect(_on_skip_pressed.bind(dialog))
 	vbox.add_child(skip)
 
 	dialog.add_child(vbox)
 	return dialog
+
+
+func _on_skip_pressed(dialog: AcceptDialog) -> void:
+	if dialog != null and is_instance_valid(dialog):
+		dialog.hide()
+
+
+func _on_template_pressed(tid: String) -> void:
+	wizard_finished.emit(tid)
 
 
 func _build_template_button(tid: String, template: Dictionary) -> Control:
@@ -80,7 +89,7 @@ func _build_template_button(tid: String, template: Dictionary) -> Control:
 		meta += dim.to_upper()
 	if not diff.is_empty():
 		if not meta.is_empty():
-			meta += "  •  "
+			meta += "  -  "
 		meta += diff
 	if not meta.is_empty():
 		var meta_label := Label.new()
@@ -91,7 +100,7 @@ func _build_template_button(tid: String, template: Dictionary) -> Control:
 
 	var apply := Button.new()
 	apply.text = "Use this starter"
-	apply.pressed.connect(func(): wizard_finished.emit(tid))
+	apply.pressed.connect(_on_template_pressed.bind(tid))
 	inner.add_child(apply)
 
 	panel.add_child(inner)

@@ -9,12 +9,20 @@ script editor. It teaches while it works: every snippet and
 blueprint explains what it does, where it goes, what to set up
 first, and what usually goes wrong.
 
+It also watches your Output panel. When a script breaks, the
+plugin shows a plain-English explanation and a suggested fix — no
+need to Google the error.
+
 ## Why
 
 Writing boilerplate GDScript over and over is boring. Building the
 same `CharacterBody3D` + `CollisionShape3D` + `Camera3D` hierarchy
 is boring. Typing `3d character` and getting both done is faster
 than remembering every API call and every required child node.
+
+Reading Godot's engine errors is also boring. `Invalid call.
+Nonexistent function 'x' in base 'Nil'` is technically informative
+and practically useless to a beginner.
 
 - Offline. Works on a plane.
 - Instant. No round-trips.
@@ -25,6 +33,8 @@ than remembering every API call and every required child node.
   THIS IS OPTIMIZED, and COMMON MISTAKES sections. Every tunable
   parameter has a default, a range, typical values, and what
   happens when you increase or decrease it.
+- Fixes errors. The Errors tab watches Godot's Output and turns
+  cryptic engine messages into plain English with one-click fixes.
 - Extensible. Add your own snippets and blueprints in a plain
   GDScript file.
 - Android-tested. Built and tested on a tablet.
@@ -49,7 +59,7 @@ than remembering every API call and every required child node.
 On first run, a wizard offers starter templates — 2D platformer,
 3D FPS, top-down RPG, and more.
 
-## The four tabs
+## The six tabs
 
 ### Preview
 The main view. Type a phrase, see the code or blueprint, insert
@@ -78,6 +88,77 @@ it does, what children it needs, and common mistakes.
 - **Scene checker** — scans your scene for common mistakes.
 - **Debug overlay** — installs an FPS / draw call / memory overlay
   into the current scene. Press F3 in-game to toggle.
+
+### Fix
+Describe a problem in plain English. The Fix tab searches 200
+curated fix records and ranks the best matches.
+
+Type things like:
+- `player cant jump`
+- `signal not firing`
+- `collision not working`
+- `health bar not updating`
+
+Each result shows:
+- A confidence percentage with a colored ring (blue for low
+  confidence, amber for medium, red for high).
+- The plain-English explanation of the problem.
+- The most likely causes.
+- The primary fix code.
+- Alternative fixes.
+
+Buttons per card:
+- **Insert** — puts the fix code at your cursor.
+- **Copy** — sends it to the clipboard.
+- **Not this** — records a "declined" signal for that fix.
+
+If two candidates are close in confidence, the panel asks a
+disambiguating question. Answer it and the list re-ranks itself.
+
+**The Fix tab learns.** Every time you Insert or Copy a fix, that
+choice is recorded to `user://gd_snippet_expander/fix_history.json`.
+Fixes you've applied before, for similar queries, rank higher
+next time.
+
+The Fix tab only runs when you've typed a query. No query means
+no suggestions — no noise on every file open.
+
+### Errors
+Watches Godot's Output panel. When a script breaks, a card appears
+automatically.
+
+Each card shows:
+- A plain-English title, like "Calling a method on a null
+  reference" instead of the raw engine error.
+- The explanation of what went wrong.
+- Common causes as a bullet list.
+- The suggested fix code.
+- The raw error line, in small grey text at the bottom.
+
+Buttons per card:
+- **Locate** — jumps to the exact file and line that triggered
+  the error.
+- **Copy** — sends the fix code to the clipboard.
+- **Insert** — puts the fix code at your cursor.
+- **Undo** — reverts the last edit in the script editor.
+
+**Cards appear and disappear on their own.** When the error is
+fixed and Output clears, the card goes away. No manual refresh
+needed.
+
+The Errors tab ships with 17 curated patterns covering:
+- Null safety (`Invalid call ... in base 'Nil'`, `Invalid get index`)
+- Type errors (`Cannot infer the type of`, `Trying to assign`)
+- Syntax and parse errors
+- Node paths (`Node not found:`)
+- Signals (argument count mismatches)
+- Input (`The InputMap action "x" doesn't exist`)
+- Physics (`Division by zero`, `Index out of bounds`)
+- Godot 3 to 4 migration
+
+If the Output panel can't be located for any reason, the Errors
+tab falls back to a paste field — paste any error line and it
+still works.
 
 ## Menu commands
 
@@ -229,7 +310,6 @@ need to build a 3D game from scratch:
 All 3D snippets declare their platforms field. Everything works
 on desktop and mobile; some visual effects (volumetric fog,
 lightmaps) are desktop-optimized.
-
 
 ## Matching behavior
 

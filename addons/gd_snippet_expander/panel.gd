@@ -54,6 +54,27 @@ var _insert_default_text: String = "Insert"
 var _copy_default_text: String = "Copy"
 var _button_reset_token: int = 0
 
+var _fix_library: FixLibrary = null
+var _rule_matcher: RuleMatcher = null
+var _question_selector: QuestionSelector = null
+var _learning_store: LearningStore = null
+var _fix_tokenizer: EnglishTokenizer = null
+var _fix_panel: FixPanel = null
+var _fix_host: MarginContainer = null
+var _fix_hint: Label = null
+
+var _error_library: ErrorLibrary = null
+var _error_watcher: OutputWatcher = null
+var _error_panel: ErrorPanel = null
+var _error_host: MarginContainer = null
+var _error_hint: Label = null
+
+var _browse_tree_built: bool = false
+var _templates_built: bool = false
+
+var _startup_start_ms: int = 0
+var _startup_last_ms: int = 0
+
 @onready var _phrase_input: LineEdit = %PhraseInput
 @onready var _fav_button: Button = %FavButton
 @onready var _insert_button: Button = %InsertButton
@@ -89,14 +110,36 @@ var _button_reset_token: int = 0
 @onready var _overlay_remove_button: Button = %OverlayRemoveButton
 
 
-# =========================================================================
-# Lifecycle
-# =========================================================================
+func _startup_begin() -> void:
+	_startup_start_ms = Time.get_ticks_msec()
+	_startup_last_ms = _startup_start_ms
+	print("[GDSE startup] begin")
+
+
+func _startup_tick(label: String) -> void:
+	var now: int = Time.get_ticks_msec()
+	print("[GDSE startup] %s: %d ms (cumulative %d ms)" % [
+		label, now - _startup_last_ms, now - _startup_start_ms
+	])
+	_startup_last_ms = now
+
+
+func _startup_end() -> void:
+	var now: int = Time.get_ticks_msec()
+	print("[GDSE startup] complete: %d ms total" % (now - _startup_start_ms))
+
 
 func _ready() -> void:
+	_startup_begin()
+
 	_apply_theme()
+	_startup_tick("_apply_theme")
+
 	_ensure_library()
+	_startup_tick("_ensure_library")
+
 	_ensure_helpers()
+	_startup_tick("_ensure_helpers")
 
 	_fav_button.pressed.connect(_on_fav_pressed)
 	_insert_button.pressed.connect(_on_insert_pressed)
@@ -117,16 +160,26 @@ func _ready() -> void:
 	if _map_browser != null and _map_browser.has_signal("item_selected"):
 		_map_browser.item_selected.connect(_on_browse_item_selected)
 
+	_startup_tick("signal connections")
+
 	_apply_saved_mode()
 	_clear_match()
-	_rebuild_browse_tree()
-	_rebuild_templates_list()
 	_rebuild_favorites_row()
 	_rebuild_suggestions()
 	_apply_theme_tweaks()
+	_startup_tick("small UI setup")
+
+	_add_fix_tab_host()
+	_add_error_tab_host()
+	if _main_tabs != null and not _main_tabs.tab_changed.is_connected(_on_main_tabs_tab_changed):
+		_main_tabs.tab_changed.connect(_on_main_tabs_tab_changed)
+	_startup_tick("tab signal wiring")
+
 	if _editor_interface != null and _inspector != null and _inspector.has_method("set_editor_interface"):
 		_inspector.set_editor_interface(_editor_interface)
 	_set_initial_status()
+
+	_startup_end()
 
 
 func set_editor_interface(ei: EditorInterface) -> void:
@@ -134,6 +187,7 @@ func set_editor_interface(ei: EditorInterface) -> void:
 	if _inspector != null and _inspector.has_method("set_editor_interface"):
 		_inspector.set_editor_interface(ei)
 	_connect_selection_signal()
+	_connect_fix_panel_signals()
 	if _wizard != null and ei != null:
 		_maybe_show_wizard()
 
@@ -144,10 +198,8 @@ func _connect_selection_signal() -> void:
 	var sel := _editor_interface.get_selection()
 	if sel == null:
 		return
-	# Already connected to this same selection object — nothing to do.
 	if _editor_selection == sel and sel.selection_changed.is_connected(_on_editor_selection_changed):
 		return
-	# Disconnect from an older selection object if we had one.
 	if _editor_selection != null and _editor_selection.selection_changed.is_connected(_on_editor_selection_changed):
 		_editor_selection.selection_changed.disconnect(_on_editor_selection_changed)
 	_editor_selection = sel
@@ -155,16 +207,10 @@ func _connect_selection_signal() -> void:
 
 
 func _on_editor_selection_changed() -> void:
-	# The signal fires before _ready() on first setup, so guard against
-	# @onready references not being ready yet.
 	if not is_node_ready():
 		return
 	_on_learn_refresh_pressed()
 
-
-# =========================================================================
-# Theme
-# =========================================================================
 
 func _apply_theme() -> void:
 	if _theme_ref == null:
@@ -183,10 +229,6 @@ func _apply_theme_tweaks() -> void:
 	_blueprint_io_status.add_theme_font_size_override("font_size", 11)
 	_blueprint_io_status.modulate = Color(1, 1, 1, 0.85)
 
-
-# =========================================================================
-# Helper instances
-# =========================================================================
 
 func _ensure_library() -> GDASELibrary:
 	if _library == null:
@@ -216,9 +258,155 @@ func _ensure_helpers() -> void:
 		_version_check = VersionCheckScript.new()
 
 
-# =========================================================================
-# Initial status (version-aware)
-# =========================================================================
+func _add_fix_tab_host() -> void:
+	if _main_tabs == null:
+		return
+	if _fix_host != null and is_instance_valid(_fix_host):
+		return
+	_fix_host = _make_tab_host("Fix")
+	_fix_hint = _make_tab_hint("Click again to load the Fix tab.")
+	_fix_host.add_child(_fix_hint)
+	_main_tabs.add_child(_fix_host)
+
+
+func _ensure_fix_panel() -> void:
+	if _fix_panel != null:
+		return
+	if _fix_host == null or not is_instance_valid(_fix_host):
+		return
+
+	var t0: int = Time.get_ticks_msec()
+
+	_fix_library = FixLibrary.new()
+	_fix_library.load_all()
+	FixLibraryDataA.register_into(_fix_library)
+	FixLibraryDataB.register_into(_fix_library)
+	FixLibraryDataC.register_into(_fix_library)
+	FixLibraryDataD.register_into(_fix_library)
+	FixLibraryDataE.register_into(_fix_library)
+	var t_lib: int = Time.get_ticks_msec()
+	print("[GDSE fix] library loaded: %d ms (%d records)" % [
+		t_lib - t0, _fix_library.record_count()
+	])
+
+	_fix_tokenizer = EnglishTokenizer.new()
+
+	_rule_matcher = RuleMatcher.new()
+	_rule_matcher.set_library(_fix_library)
+	_rule_matcher.set_tokenizer(_fix_tokenizer)
+
+	_question_selector = QuestionSelector.new()
+	_question_selector.set_library(_fix_library)
+
+	_learning_store = LearningStore.new()
+	_learning_store.try_load_default()
+	var t_store: int = Time.get_ticks_msec()
+	print("[GDSE fix] helpers + store: %d ms" % (t_store - t_lib))
+
+	_fix_panel = FixPanel.new()
+	_fix_panel.name = "FixPanel"
+	_fix_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_fix_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_fix_panel.set_library(_fix_library)
+	_fix_panel.set_matcher(_rule_matcher)
+	_fix_panel.set_question_selector(_question_selector)
+	_fix_panel.set_learning_store(_learning_store)
+	_fix_panel.set_tokenizer(_fix_tokenizer)
+
+	if _fix_hint != null and is_instance_valid(_fix_hint):
+		_fix_host.remove_child(_fix_hint)
+		_fix_hint.queue_free()
+		_fix_hint = null
+	_fix_host.add_child(_fix_panel)
+
+	var t_ui: int = Time.get_ticks_msec()
+	print("[GDSE fix] panel UI built: %d ms" % (t_ui - t_store))
+	print("[GDSE fix] total: %d ms" % (t_ui - t0))
+
+
+func _connect_fix_panel_signals() -> void:
+	if _editor_interface == null:
+		return
+	var se := _editor_interface.get_script_editor()
+	if se == null:
+		return
+	if not se.editor_script_changed.is_connected(_on_editor_script_changed):
+		se.editor_script_changed.connect(_on_editor_script_changed)
+
+
+func _add_error_tab_host() -> void:
+	if _main_tabs == null:
+		return
+	if _error_host != null and is_instance_valid(_error_host):
+		return
+	_error_host = _make_tab_host("Errors")
+	_error_hint = _make_tab_hint("Click again to load the Errors tab.")
+	_error_host.add_child(_error_hint)
+	_main_tabs.add_child(_error_host)
+
+
+func _ensure_error_panel() -> void:
+	if _error_panel != null:
+		return
+	if _error_host == null or not is_instance_valid(_error_host):
+		return
+
+	var t0: int = Time.get_ticks_msec()
+
+	_error_library = ErrorLibrary.new()
+	_error_library.load_all()
+	var t_lib: int = Time.get_ticks_msec()
+	print("[GDSE errors] library loaded: %d ms (%d records)" % [
+		t_lib - t0, _error_library.record_count()
+	])
+
+	_error_watcher = OutputWatcher.new()
+	_error_watcher.set_library(_error_library)
+	add_child(_error_watcher)
+	var t_watch: int = Time.get_ticks_msec()
+	print("[GDSE errors] watcher built: %d ms" % (t_watch - t_lib))
+
+	_error_panel = ErrorPanel.new()
+	_error_panel.name = "ErrorPanel"
+	_error_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_error_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_error_panel.set_library(_error_library)
+	_error_panel.set_watcher(_error_watcher)
+
+	if _error_hint != null and is_instance_valid(_error_hint):
+		_error_host.remove_child(_error_hint)
+		_error_hint.queue_free()
+		_error_hint = null
+	_error_host.add_child(_error_panel)
+
+	var t_ui: int = Time.get_ticks_msec()
+	print("[GDSE errors] panel UI built: %d ms" % (t_ui - t_watch))
+	print("[GDSE errors] total: %d ms" % (t_ui - t0))
+
+
+func _make_tab_host(tab_name: String) -> MarginContainer:
+	var host: MarginContainer = MarginContainer.new()
+	host.name = tab_name
+	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	host.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	host.add_theme_constant_override("margin_left", 0)
+	host.add_theme_constant_override("margin_right", 0)
+	host.add_theme_constant_override("margin_top", 0)
+	host.add_theme_constant_override("margin_bottom", 0)
+	return host
+
+
+func _make_tab_hint(text: String) -> Label:
+	var lbl: Label = Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 16)
+	lbl.add_theme_color_override("font_color", Color(0.65, 0.65, 0.7))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	return lbl
+
 
 func _set_initial_status() -> void:
 	if _version_check != null and _version_check.should_show_warning():
@@ -231,7 +419,7 @@ func _set_initial_status() -> void:
 
 
 # =========================================================================
-# Wizard
+# Wizard — no lambdas
 # =========================================================================
 
 func _maybe_show_wizard() -> void:
@@ -242,17 +430,22 @@ func _maybe_show_wizard() -> void:
 	var dialog : AcceptDialog = _wizard.build_dialog(_library)
 	if not _wizard.wizard_finished.is_connected(_on_wizard_finished):
 		_wizard.wizard_finished.connect(_on_wizard_finished)
-	dialog.confirmed.connect(func(): dialog.queue_free())
-	dialog.canceled.connect(func(): dialog.queue_free())
-	dialog.close_requested.connect(func(): dialog.queue_free())
+	dialog.confirmed.connect(_on_wizard_dialog_closed.bind(dialog))
+	dialog.canceled.connect(_on_wizard_dialog_closed.bind(dialog))
+	dialog.close_requested.connect(_on_wizard_dialog_closed.bind(dialog))
 	add_child(dialog)
 	dialog.popup_centered()
 	_wizard.mark_done(_library)
 
 
+func _on_wizard_dialog_closed(dialog: AcceptDialog) -> void:
+	if dialog != null and is_instance_valid(dialog):
+		dialog.queue_free()
+
+
 func _on_wizard_finished(template_id: String) -> void:
 	if _editor_interface == null:
-		_set_status("No editor interface — cannot apply template.", STATUS_COLOR_WARN)
+		_set_status("No editor interface - cannot apply template.", STATUS_COLOR_WARN)
 		return
 	var result: Dictionary = _starter_templates.apply(template_id, _library, _editor_interface)
 	_set_status(str(result.get("message", "Template applied.")), STATUS_COLOR_OK)
@@ -343,7 +536,7 @@ func _apply_match(kind: String, id: String, phrase: String, overwrite_input: boo
 	var display_name := id
 	if kind == GDASELibrary.KIND_BLUEPRINT:
 		display_name = str(_current_match.get("title", id))
-	_set_status("Matched \"%s\" \u2192 %s" % [phrase, display_name], STATUS_COLOR_OK)
+	_set_status("Matched \"%s\" -> %s" % [phrase, display_name], STATUS_COLOR_OK)
 
 
 func _clear_match() -> void:
@@ -360,10 +553,6 @@ func _clear_match() -> void:
 	_update_insert_button_label()
 	_update_fav_button()
 
-
-# =========================================================================
-# Result list
-# =========================================================================
 
 func _show_results(results: Array) -> void:
 	_results_list.clear()
@@ -390,10 +579,6 @@ func _on_result_selected(index: int) -> void:
 	var entry: Dictionary = _current_results[index]
 	_apply_match(str(entry.kind), str(entry.id), str(entry.phrase_matched), true)
 
-
-# =========================================================================
-# Favorites
-# =========================================================================
 
 func _on_fav_pressed() -> void:
 	if _current_match.is_empty():
@@ -486,10 +671,6 @@ func _on_favorite_chip_pressed(id: String) -> void:
 	_main_tabs.current_tab = 0
 
 
-# =========================================================================
-# Suggestions
-# =========================================================================
-
 func _rebuild_suggestions() -> void:
 	if _suggestion_chips == null or _suggestion_row == null:
 		return
@@ -523,10 +704,6 @@ func _on_suggestion_chip_pressed(id: String) -> void:
 		return
 	_main_tabs.current_tab = 0
 
-
-# =========================================================================
-# Preview rendering
-# =========================================================================
 
 func _render_preview() -> void:
 	if _current_match.is_empty():
@@ -719,9 +896,7 @@ func _format_blueprint_setup(bp: Dictionary) -> String:
 	if lines.is_empty():
 		return "No setup notes for this blueprint."
 	return "\n".join(lines)
-
-
-# =========================================================================
+	# =========================================================================
 # Warnings
 # =========================================================================
 
@@ -946,11 +1121,24 @@ func _on_copy_pressed() -> void:
 # Browse tab
 # =========================================================================
 
+func _ensure_browse_tree_built() -> void:
+	if _browse_tree_built:
+		return
+	if _map_browser == null or _browse_tree == null:
+		return
+	var t0: int = Time.get_ticks_msec()
+	_map_browser.build_tree(_browse_tree, _library)
+	_map_browser.connect_tree_signal()
+	_browse_tree_built = true
+	print("[GDSE browse] tree built: %d ms" % (Time.get_ticks_msec() - t0))
+
+
 func _rebuild_browse_tree() -> void:
 	if _map_browser == null or _browse_tree == null:
 		return
 	_map_browser.build_tree(_browse_tree, _library)
 	_map_browser.connect_tree_signal()
+	_browse_tree_built = true
 
 
 func _on_browse_item_selected(kind: String, id: String) -> void:
@@ -982,8 +1170,15 @@ func _on_learn_refresh_pressed() -> void:
 
 
 # =========================================================================
-# Tools tab — templates
+# Tools tab
 # =========================================================================
+
+func _ensure_templates_built() -> void:
+	if _templates_built:
+		return
+	_rebuild_templates_list()
+	_templates_built = true
+
 
 func _rebuild_templates_list() -> void:
 	if _templates_list == null or _library == null:
@@ -1017,10 +1212,6 @@ func _on_template_apply_pressed(template_id: String) -> void:
 	var result: Dictionary = _starter_templates.apply(template_id, _library, _editor_interface)
 	_set_status(str(result.get("message", "Template applied.")), STATUS_COLOR_OK)
 
-
-# =========================================================================
-# Tools tab — blueprint import/export
-# =========================================================================
 
 func _on_export_blueprints_pressed() -> void:
 	if _blueprint_io == null:
@@ -1083,10 +1274,6 @@ func _on_import_path_selected(path: String) -> void:
 		_set_status(msg, STATUS_COLOR_ERR)
 
 
-# =========================================================================
-# Tools tab — scene checker
-# =========================================================================
-
 func _on_checker_pressed() -> void:
 	if _editor_interface == null or _scene_checker == null:
 		return
@@ -1095,10 +1282,6 @@ func _on_checker_pressed() -> void:
 	_fade_in_node(_checker_output)
 	_set_status("Scanned scene. %d issue(s) found." % issues.size(), STATUS_COLOR_OK)
 
-
-# =========================================================================
-# Tools tab — debug overlay
-# =========================================================================
 
 func _on_overlay_install_pressed() -> void:
 	if _editor_interface == null:
@@ -1371,3 +1554,58 @@ func _read_editor_color(settings: EditorSettings, key: String, fallback: Color) 
 	if value is Color:
 		return value
 	return fallback
+
+
+# =========================================================================
+# Tab change — lazy builds
+# =========================================================================
+
+func _on_main_tabs_tab_changed(tab_index: int) -> void:
+	if _main_tabs == null:
+		return
+	if tab_index < 0 or tab_index >= _main_tabs.get_tab_count():
+		return
+	var title: String = _main_tabs.get_tab_title(tab_index)
+
+	if title == "Fix":
+		if _fix_panel == null:
+			_ensure_fix_panel()
+		if _fix_panel != null:
+			_fix_panel.refresh()
+	elif title == "Errors":
+		if _error_panel == null:
+			_ensure_error_panel()
+		if _error_panel != null:
+			_error_panel.on_show()
+	elif title == "Browse":
+		_ensure_browse_tree_built()
+	elif title == "Tools":
+		_ensure_templates_built()
+
+
+func _on_editor_script_changed(_script: Script) -> void:
+	if _fix_panel == null:
+		return
+	if _main_tabs == null:
+		return
+	var idx: int = _main_tabs.current_tab
+	if idx < 0 or idx >= _main_tabs.get_tab_count():
+		return
+	if _main_tabs.get_tab_title(idx) == "Fix":
+		_fix_panel.refresh()
+
+
+# =========================================================================
+# External accessors
+# =========================================================================
+
+func get_fix_panel() -> FixPanel:
+	return _fix_panel
+
+
+func get_error_panel() -> ErrorPanel:
+	return _error_panel
+
+
+func get_error_watcher() -> OutputWatcher:
+	return _error_watcher
